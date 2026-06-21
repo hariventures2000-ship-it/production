@@ -1,16 +1,55 @@
 "use client";
 
-import { useState } from "react";
-
-const mockLeaves = [
-  { id: "LR-001", type: "Casual Leave", days: 3, startDate: "2026-06-24", endDate: "2026-06-26", status: "PENDING", reason: "Family trip" },
-  { id: "LR-002", type: "Earned Leave", days: 5, startDate: "2026-05-10", endDate: "2026-05-15", status: "APPROVED", reason: "Vacation" },
-  { id: "LR-003", type: "Sick Leave", days: 2, startDate: "2026-04-01", endDate: "2026-04-02", status: "APPROVED", reason: "Fever" },
-  { id: "LR-004", type: "Casual Leave", days: 1, startDate: "2026-02-15", endDate: "2026-02-15", status: "REJECTED", reason: "Personal work" },
-];
+import { useState, useEffect } from "react";
 
 export default function MyLeavesPage() {
   const [isRequesting, setIsRequesting] = useState(false);
+  const [leaves, setLeaves] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Form State
+  const [type, setType] = useState("Casual Leave");
+  const [days, setDays] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [reason, setReason] = useState("");
+
+  const fetchLeaves = async () => {
+    try {
+      const res = await fetch("http://localhost:3003/api/mock-leaves");
+      const data = await res.json();
+      setLeaves(data);
+    } catch (error) {
+      console.error("Failed to fetch leaves:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaves();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await fetch("http://localhost:3003/api/mock-leaves", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          employeeName: "Rahul Sharma",
+          type, days: parseFloat(days), startDate, endDate, reason
+        })
+      });
+      setIsRequesting(false);
+      // Reset form
+      setType("Casual Leave"); setDays(""); setStartDate(""); setEndDate(""); setReason("");
+      // Refresh list
+      fetchLeaves();
+    } catch (error) {
+      console.error("Failed to submit leave", error);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -28,11 +67,11 @@ export default function MyLeavesPage() {
               Cancel
             </button>
           </div>
-          <form className="p-8 space-y-6">
+          <form className="p-8 space-y-6" onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Leave Type *</label>
-                <select className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-mervi-blue focus:ring-2 focus:ring-mervi-blue/20 outline-none transition-all">
+                <select value={type} onChange={e => setType(e.target.value)} required className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-mervi-blue focus:ring-2 focus:ring-mervi-blue/20 outline-none transition-all">
                   <option>Casual Leave</option>
                   <option>Sick Leave</option>
                   <option>Earned Leave</option>
@@ -42,23 +81,23 @@ export default function MyLeavesPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Total Days *</label>
-                <input type="number" min="0.5" step="0.5" placeholder="e.g. 2" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-mervi-blue focus:ring-2 focus:ring-mervi-blue/20 outline-none transition-all" />
+                <input type="number" min="0.5" step="0.5" value={days} onChange={e => setDays(e.target.value)} required placeholder="e.g. 2" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-mervi-blue focus:ring-2 focus:ring-mervi-blue/20 outline-none transition-all" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
-                <input type="date" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-mervi-blue focus:ring-2 focus:ring-mervi-blue/20 outline-none transition-all text-gray-600" />
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-mervi-blue focus:ring-2 focus:ring-mervi-blue/20 outline-none transition-all text-gray-600" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">End Date *</label>
-                <input type="date" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-mervi-blue focus:ring-2 focus:ring-mervi-blue/20 outline-none transition-all text-gray-600" />
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} required className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-mervi-blue focus:ring-2 focus:ring-mervi-blue/20 outline-none transition-all text-gray-600" />
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Leave *</label>
-                <textarea rows={3} placeholder="Provide a brief reason..." className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-mervi-blue focus:ring-2 focus:ring-mervi-blue/20 outline-none transition-all resize-none"></textarea>
+                <textarea rows={3} value={reason} onChange={e => setReason(e.target.value)} required placeholder="Provide a brief reason..." className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-mervi-blue focus:ring-2 focus:ring-mervi-blue/20 outline-none transition-all resize-none"></textarea>
               </div>
             </div>
             <div className="flex justify-end pt-4 border-t border-gray-100">
-              <button type="button" onClick={() => setIsRequesting(false)} className="px-8 py-2.5 bg-mervi-blue hover:bg-blue-600 text-white rounded-xl font-medium transition-all shadow-md active:scale-[0.98]">
+              <button type="submit" className="px-8 py-2.5 bg-mervi-blue hover:bg-blue-600 text-white rounded-xl font-medium transition-all shadow-md active:scale-[0.98]">
                 Submit Application
               </button>
             </div>
@@ -91,7 +130,9 @@ export default function MyLeavesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {mockLeaves.map((leave) => (
+                  {loading ? (
+                    <tr><td colSpan={4} className="px-6 py-8 text-center text-gray-500">Loading leaves...</td></tr>
+                  ) : leaves.map((leave) => (
                     <tr key={leave.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="font-medium text-gray-900">{leave.type}</div>

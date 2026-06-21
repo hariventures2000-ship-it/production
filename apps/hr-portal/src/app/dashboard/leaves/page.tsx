@@ -44,13 +44,6 @@ export default function LeaveManagementPage() {
             Approved
           </button>
           <button 
-            onClick={() => setFilter("REJECTED")}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${filter === "REJECTED" ? "bg-red-50 text-red-700 border border-red-200" : "text-gray-500 hover:text-gray-700"}`}>
-            <span className="w-2 h-2 rounded-full bg-red-500"></span>
-            Rejected
-          </button>
-        </div>
-
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="bg-gray-50/50 text-gray-500 uppercase text-xs tracking-wider">
@@ -59,19 +52,21 @@ export default function LeaveManagementPage() {
                 <th className="px-6 py-4 font-semibold">Leave Details</th>
                 <th className="px-6 py-4 font-semibold">Duration</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
-                <th className="px-6 py-4 text-right font-semibold">Actions</th>
+                <th className="px-6 py-4 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredLeaves.map((leave) => (
-                <tr key={leave.id} className="hover:bg-gray-50/50 group transition-colors">
+              {loading ? (
+                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Loading leave requests...</td></tr>
+              ) : leaves.map((leave) => (
+                <tr key={leave.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900">{leave.empName}</div>
-                    <div className="text-gray-400 text-xs">{leave.dept}</div>
+                    <div className="font-medium text-gray-900">{leave.employeeName}</div>
+                    <div className="text-gray-400 text-xs mt-0.5">EMP-0012</div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-700">{leave.type}</div>
-                    <div className="text-gray-400 text-xs truncate max-w-[200px]" title={leave.reason}>{leave.reason}</div>
+                    <div className="text-gray-400 text-xs mt-0.5 truncate max-w-[200px]" title={leave.reason}>{leave.reason}</div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-700">{leave.days} day{leave.days > 1 ? "s" : ""}</div>
@@ -88,24 +83,26 @@ export default function LeaveManagementPage() {
                   </td>
                   <td className="px-6 py-4 text-right">
                     {leave.status === 'PENDING' ? (
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-semibold hover:bg-emerald-500 hover:text-white transition-colors">Approve</button>
-                        <button className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-500 hover:text-white transition-colors">Reject</button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => handleAction(leave.id, 'REJECTED')}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Reject">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                        <button 
+                          onClick={() => handleAction(leave.id, 'APPROVED')}
+                          className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors" title="Approve">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        </button>
                       </div>
                     ) : (
-                      <span className="text-gray-300 text-xs font-medium">Processed</span>
+                      <span className="text-xs text-gray-400 font-medium tracking-wide">—</span>
                     )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          
-          {filteredLeaves.length === 0 && (
-            <div className="p-12 text-center text-gray-500">
-              No leave requests found matching this filter.
-            </div>
-          )}
         </div>
       </div>
     </div>
