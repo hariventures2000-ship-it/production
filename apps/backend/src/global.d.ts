@@ -14,4 +14,5 @@ declare module 'class-validator' {
   export function Max(max: number, options?: any): PropertyDecorator;
   export function ArrayMaxSize(max: number, options?: any): PropertyDecorator;
   export function IsMongoId(options?: any): PropertyDecorator;
+  export function IsIn(values: readonly any[], options?: any): PropertyDecorator;
 }

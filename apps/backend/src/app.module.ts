@@ -32,6 +32,9 @@ import { HealthModule } from './modules/health/health.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AlertsModule } from './modules/alerts/alerts.module';
 import { CandidatesModule } from './modules/candidates/candidates.module';
+import { MilestonesModule } from './modules/milestones/milestones.module';
+import { MdDashboardModule } from './modules/md-dashboard/md-dashboard.module';
+import { TeamleadDashboardModule } from './modules/teamlead-dashboard/teamlead-dashboard.module';
 import { DatabaseModule } from './database/database.module';
 import { QueuesModule } from './queues/queues.module';
 import { APP_GUARD } from '@nestjs/core';
@@ -124,6 +127,9 @@ import { ThrottlerExceptionFilter } from './common/filters/throttler-exception.f
     AuditModule,
     AlertsModule,
     CandidatesModule,
+    MilestonesModule,
+    MdDashboardModule,
+    TeamleadDashboardModule,
     QueuesModule,
   ],
   providers: [

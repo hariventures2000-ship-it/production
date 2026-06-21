@@ -19,6 +19,7 @@ import { Candidate, CandidateSchema } from './schemas/candidate.schema';
 import { AuditLog, AuditLogSchema } from './schemas/audit-log.schema';
 import { Session, SessionSchema } from './schemas/session.schema';
 import { OtpAttempt, OtpAttemptSchema } from './schemas/otp-attempt.schema';
+import { ProjectMilestone, ProjectMilestoneSchema } from './schemas/project-milestone.schema';
 
 export const DATABASE_MODELS = MongooseModule.forFeature([
   { name: User.name, schema: UserSchema },
@@ -40,6 +41,7 @@ export const DATABASE_MODELS = MongooseModule.forFeature([
   { name: AuditLog.name, schema: AuditLogSchema },
   { name: Session.name, schema: SessionSchema },
   { name: OtpAttempt.name, schema: OtpAttemptSchema },
+  { name: ProjectMilestone.name, schema: ProjectMilestoneSchema },
 ]);
 
 @Module({
