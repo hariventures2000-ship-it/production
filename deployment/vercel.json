@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "framework": "nextjs",
+  "buildCommand": "cd ../.. && npm run build --workspace=apps/web",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
+  "rewrites": [
+    {
+      "source": "/api/v1/:path*",
+      "destination": "https://api.hariventure.com/v1/:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ],
+  "regions": ["sin1"],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "@api-url",
+    "NEXT_PUBLIC_SOCKET_URL": "@socket-url",
+    "NEXT_PUBLIC_APP_URL": "@app-url",
+    "NEXT_PUBLIC_APP_NAME": "Hariventure Digital Production"
+  }
+}

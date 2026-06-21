@@ -1,0 +1,72 @@
+# ═══════════════════════════════════════════════════════════════════
+# MERVI AUTH SERVICE — Configuration
+# ═══════════════════════════════════════════════════════════════════
+
+server:
+  port: 8081
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: mervi-auth-service
+
+  # ─── MongoDB ─────────────────────────────────────────────────────
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/mervi_auth_db}
+      auto-index-creation: true
+
+  # ─── Redis ───────────────────────────────────────────────────────
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+      timeout: 5000
+
+  # ─── Kafka ───────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+
+# ─── JWT Configuration ──────────────────────────────────────────────
+mervi:
+  jwt:
+    access-secret: ${JWT_ACCESS_SECRET:mervi-dev-access-secret-minimum-32-chars}
+    refresh-secret: ${JWT_REFRESH_SECRET:mervi-dev-refresh-secret-minimum-32-chars}
+    route-session-secret: ${JWT_ROUTE_SESSION_SECRET:mervi-dev-route-session-secret-32ch}
+    access-expiry: ${JWT_ACCESS_EXPIRY:15m}
+    refresh-expiry: ${JWT_REFRESH_EXPIRY:7d}
+
+  # ─── OTP Configuration ─────────────────────────────────────────
+  otp:
+    length: ${OTP_LENGTH:6}
+    ttl-seconds: ${OTP_TTL_SECONDS:300}
+    max-attempts: ${OTP_MAX_ATTEMPTS:5}
+    cooldown-seconds: ${OTP_COOLDOWN_SECONDS:60}
+
+  # ─── MFA Configuration ─────────────────────────────────────────
+  mfa:
+    issuer: ${MFA_ISSUER:Mervi}
+    encryption-key: ${MFA_ENCRYPTION_KEY:mervi-mfa-encryption-key-32chars!}
+
+# ─── Actuator ────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+
+# ─── Logging ─────────────────────────────────────────────────────────
+logging:
+  level:
+    com.hariventures.mervi: DEBUG
+    org.springframework.security: INFO
+    org.springframework.data.mongodb: INFO

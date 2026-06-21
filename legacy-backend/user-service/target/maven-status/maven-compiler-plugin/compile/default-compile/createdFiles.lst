@@ -1,0 +1,8 @@
+com\hariventures\mervi\user\model\UserProfile.class
+com\hariventures\mervi\user\controller\UserController.class
+com\hariventures\mervi\user\service\UserService.class
+com\hariventures\mervi\user\dto\UserProfileDto.class
+com\hariventures\mervi\user\model\UserProfile$UserProfileBuilder.class
+com\hariventures\mervi\user\UserServiceApplication.class
+com\hariventures\mervi\user\dto\UserProfileDto$UserProfileDtoBuilder.class
+com\hariventures\mervi\user\repository\UserProfileRepository.class

@@ -1,0 +1,10 @@
+com\hariventures\mervi\tenant\TenantServiceApplication.class
+com\hariventures\mervi\tenant\service\TenantService.class
+com\hariventures\mervi\tenant\model\Subscription$SubscriptionBuilder.class
+com\hariventures\mervi\tenant\model\Subscription.class
+com\hariventures\mervi\tenant\model\FeatureFlag$FeatureFlagBuilder.class
+com\hariventures\mervi\tenant\model\Tenant.class
+com\hariventures\mervi\tenant\model\Tenant$TenantBuilder.class
+com\hariventures\mervi\tenant\controller\TenantController.class
+com\hariventures\mervi\tenant\model\FeatureFlag.class
+com\hariventures\mervi\tenant\repository\TenantRepository.class

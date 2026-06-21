@@ -1,0 +1,7 @@
+com\hariventures\mervi\gateway\filter\JwtAuthenticationFilter.class
+com\hariventures\mervi\gateway\MerviGatewayApplication.class
+com\hariventures\mervi\gateway\filter\RbacAuthorizationFilter.class
+com\hariventures\mervi\gateway\filter\TenantResolutionFilter$Config.class
+com\hariventures\mervi\gateway\filter\JwtAuthenticationFilter$Config.class
+com\hariventures\mervi\gateway\filter\RbacAuthorizationFilter$Config.class
+com\hariventures\mervi\gateway\filter\TenantResolutionFilter.class
