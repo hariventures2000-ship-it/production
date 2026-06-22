@@ -3,17 +3,23 @@
 import { useState } from "react";
 
 const mockLeaves = [
-  { id: "LR-001", empName: "Rahul Sharma", dept: "Engineering", type: "Casual Leave", days: 3, startDate: "2026-06-24", endDate: "2026-06-26", status: "PENDING", reason: "Family trip" },
-  { id: "LR-002", empName: "Priya Nair", dept: "Design", type: "Sick Leave", days: 1, startDate: "2026-06-23", endDate: "2026-06-23", status: "PENDING", reason: "Fever" },
-  { id: "LR-003", empName: "Arun Kumar", dept: "DevOps", type: "Earned Leave", days: 5, startDate: "2026-07-01", endDate: "2026-07-05", status: "PENDING", reason: "Vacation" },
-  { id: "LR-004", empName: "Neha Gupta", dept: "Marketing", type: "Casual Leave", days: 2, startDate: "2026-06-20", endDate: "2026-06-21", status: "APPROVED", reason: "Personal work" },
-  { id: "LR-005", empName: "Vikram Singh", dept: "Engineering", type: "Sick Leave", days: 2, startDate: "2026-06-15", endDate: "2026-06-16", status: "REJECTED", reason: "Not feeling well" },
+  { id: "LR-001", employeeName: "Rahul Sharma", dept: "Engineering", type: "Casual Leave", days: 3, startDate: "2026-06-24", endDate: "2026-06-26", status: "PENDING", reason: "Family trip" },
+  { id: "LR-002", employeeName: "Priya Nair", dept: "Design", type: "Sick Leave", days: 1, startDate: "2026-06-23", endDate: "2026-06-23", status: "PENDING", reason: "Fever" },
+  { id: "LR-003", employeeName: "Arun Kumar", dept: "DevOps", type: "Earned Leave", days: 5, startDate: "2026-07-01", endDate: "2026-07-05", status: "PENDING", reason: "Vacation" },
+  { id: "LR-004", employeeName: "Neha Gupta", dept: "Marketing", type: "Casual Leave", days: 2, startDate: "2026-06-20", endDate: "2026-06-21", status: "APPROVED", reason: "Personal work" },
+  { id: "LR-005", employeeName: "Vikram Singh", dept: "Engineering", type: "Sick Leave", days: 2, startDate: "2026-06-15", endDate: "2026-06-16", status: "REJECTED", reason: "Not feeling well" },
 ];
 
 export default function LeaveManagementPage() {
   const [filter, setFilter] = useState("ALL");
+  const [leaves, setLeaves] = useState(mockLeaves);
+  const loading = false;
 
-  const filteredLeaves = mockLeaves.filter(l => filter === "ALL" ? true : l.status === filter);
+  const filteredLeaves = leaves.filter(l => filter === "ALL" ? true : l.status === filter);
+
+  const handleAction = (id: string, status: string) => {
+    setLeaves(prev => prev.map(l => l.id === id ? { ...l, status } : l));
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -44,6 +50,12 @@ export default function LeaveManagementPage() {
             Approved
           </button>
           <button 
+            onClick={() => setFilter("REJECTED")}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${filter === "REJECTED" ? "bg-red-50 text-red-700 border border-red-200" : "text-gray-500 hover:text-gray-700"}`}>
+            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            Rejected
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left whitespace-nowrap">
             <thead className="bg-gray-50/50 text-gray-500 uppercase text-xs tracking-wider">
@@ -58,7 +70,7 @@ export default function LeaveManagementPage() {
             <tbody className="divide-y divide-gray-100">
               {loading ? (
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-500">Loading leave requests...</td></tr>
-              ) : leaves.map((leave) => (
+              ) : filteredLeaves.map((leave) => (
                 <tr key={leave.id} className="hover:bg-gray-50/50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-900">{leave.employeeName}</div>

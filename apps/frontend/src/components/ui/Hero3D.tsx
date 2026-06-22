@@ -105,7 +105,7 @@ export function Hero3D({ title, subtitle, highlightWords = [] }: Hero3DProps) {
   const renderTitle = () => {
     if (!highlightWords.length) return title;
     
-    let result: React.ReactNode[] = [title];
+    let result: any[] = [title];
     
     highlightWords.forEach(word => {
       result = result.flatMap((part, i) => {

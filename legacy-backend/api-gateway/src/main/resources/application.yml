@@ -16,18 +16,19 @@ spring:
 
   # ─── Gateway Routing ──────────────────────────────────────────────
   cloud:
+    compatibility-verifier:
+      enabled: false
     gateway:
       globalcors:
         corsConfigurations:
           '[/**]':
             allowedOrigins: 
-              - "http://localhost:3000" # Super Admin
+              - "http://localhost:3000" # Super Admin / Frontend Client
               - "http://localhost:3001" # CEO
-              - "http://localhost:3002" # MD
               - "http://localhost:3003" # HR
-              - "http://localhost:3004" # Team Lead
               - "http://localhost:3005" # Employee
-              - "http://localhost:3006" # Client
+              - "http://localhost:3006" # MD
+              - "http://localhost:3007" # Team Lead
             allowedMethods:
               - GET
               - POST

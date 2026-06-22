@@ -20,8 +20,8 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(authz -> authz
                 // All auth endpoints are permitted to be hit. The gateway enforces rate limiting.
-                .requestMatchers("/api/v1/auth/**").permitAll()
-                .requestMatchers("/actuator/health/**").permitAll()
+                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
             );
 

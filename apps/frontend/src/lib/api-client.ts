@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/auth.store';
 // API Client — Hariventure Digital Production
 // ═══════════════════════════════════════════════════════════════════
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: `${API_BASE_URL}/v1`,

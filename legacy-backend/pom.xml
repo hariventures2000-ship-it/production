@@ -69,7 +69,7 @@
         <google-genai.version>1.1.0</google-genai.version>
 
         <!-- Utilities -->
-        <lombok.version>1.18.34</lombok.version>
+        <lombok.version>1.18.46</lombok.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <commons-lang3.version>3.17.0</commons-lang3.version>
 

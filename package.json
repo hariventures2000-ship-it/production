@@ -15,9 +15,7 @@
     "type-check": "turbo run type-check",
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "db:seed": "cd apps/backend && npm run db:seed",
-    "db:migrate": "cd apps/backend && npm run db:migrate"
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "devDependencies": {
     "@jest/core": "^30.4.2",

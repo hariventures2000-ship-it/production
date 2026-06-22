@@ -68,4 +68,5 @@ export interface AuthSession {
   email?: string;        // clients
   username?: string;     // internal users
   mfaEnabled?: boolean;
+  isFirstLogin?: boolean;
 }
