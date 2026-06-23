@@ -8,6 +8,8 @@ import com.hariventures.mervi.shared.tenant.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.kafka.core.KafkaTemplate;
+import com.hariventures.mervi.shared.event.EmployeeOnboardedEvent;
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -20,6 +22,7 @@ import java.util.Map;
 public class HrEmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     public List<Employee> getAllEmployees() {
         return employeeRepository.findByTenantId(TenantContext.getTenantId());
@@ -71,7 +74,22 @@ public class HrEmployeeService {
 
         log.info("Onboarding employee {} in tenant {}", employee.getEmail(), tenantId);
 
-        // TODO: Publish EMPLOYEE_ONBOARDED event to Kafka
+        // Publish EMPLOYEE_ONBOARDED event to Kafka
+        EmployeeOnboardedEvent event = EmployeeOnboardedEvent.builder()
+                .employeeId(employee.getEmployeeId())
+                .firstName(employee.getFirstName())
+                .lastName(employee.getLastName())
+                .email(employee.getEmail())
+                .department(employee.getDepartment() != null ? employee.getDepartment().name() : null)
+                .salary(employee.getSalary())
+                .tenantId(tenantId)
+                .build();
+        try {
+            kafkaTemplate.send("EMPLOYEE_ONBOARDED", employee.getEmployeeId(), event);
+            log.info("Published EMPLOYEE_ONBOARDED event to Kafka for employee: {}", employee.getEmployeeId());
+        } catch (Exception e) {
+            log.error("Failed to publish EMPLOYEE_ONBOARDED event to Kafka", e);
+        }
 
         return employeeRepository.save(employee);
     }

@@ -63,16 +63,16 @@ This document outlines the implementation ideas and concrete tasks for the remai
 - **Unified Notification Hub**: The `notification-service` consumes events and dispatches them via Email (JavaMailSender) or WebSocket to the frontends.
 
 ### Tasks
-- [ ] Create `mervi-analytics-service` backend module
-  - [ ] Setup Kafka consumers for domain events
-  - [ ] Build aggregation pipelines in MongoDB
-  - [ ] Expose read-only analytics endpoints for the MD and Super Admin portals
-- [ ] Create `mervi-notification-service` backend module
-  - [ ] Implement email templating engine (Thymeleaf or Freemarker)
-  - [ ] Implement WebSocket endpoints for real-app in-app notifications
-- [ ] Update Frontend Portals
-  - [ ] Wire up real-time notification bells in the navigation bars
-  - [ ] Add rich charts (using Recharts or Chart.js) to the MD and Super Admin dashboards
+- [x] Create `mervi-analytics-service` backend module
+  - [x] Setup Kafka consumers for domain events
+  - [x] Build aggregation pipelines in MongoDB
+  - [x] Expose read-only analytics endpoints for the MD and Super Admin portals
+- [x] Create `mervi-notification-service` backend module
+  - [x] Implement email templating engine (Thymeleaf or Freemarker)
+  - [x] Implement WebSocket endpoints for real-app in-app notifications
+- [x] Update Frontend Portals
+  - [x] Wire up real-time notification bells in the navigation bars
+  - [x] Add rich charts (using Recharts or Chart.js) to the MD and Super Admin dashboards
 
 ---
 
@@ -85,9 +85,9 @@ This document outlines the implementation ideas and concrete tasks for the remai
 - **Analytics Copilot**: AI integration in the MD portal that can translate natural language queries into MongoDB aggregations ("Show me the budget utilization for Q3 across all design projects").
 
 ### Tasks
-- [ ] Create `mervi-ai-service` backend module
-  - [ ] Integrate with Google GenAI / Gemini APIs
-  - [ ] Implement RAG (Retrieval-Augmented Generation) pipeline using Spring AI
-- [ ] Update Frontend Portals
-  - [ ] Add Chatbot UI component to the Mervi design system
-  - [ ] Implement the Analytics Copilot input box in the MD Portal
+- [x] Create `mervi-ai-service` backend module
+  - [x] Integrate with Google GenAI / Gemini APIs
+  - [x] Implement RAG (Retrieval-Augmented Generation) pipeline using Spring AI
+- [x] Update Frontend Portals
+  - [x] Add Chatbot UI component to the Mervi design system
+  - [x] Implement the Analytics Copilot input box in the MD Portal

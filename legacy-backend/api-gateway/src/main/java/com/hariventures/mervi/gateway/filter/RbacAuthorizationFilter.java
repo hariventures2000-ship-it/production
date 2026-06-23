@@ -48,6 +48,34 @@ public class RbacAuthorizationFilter extends AbstractGatewayFilterFactory<RbacAu
                         return exchange.getResponse().setComplete();
                     }
                 }
+
+                // Client Portal / Tickets / Invoices — strictly restricted to CLIENT and SUPER_ADMIN
+                if (path.startsWith("/api/v1/client-portal") || path.startsWith("/api/v1/client/") || path.startsWith("/api/v1/tickets")) {
+                    if (role != Role.CLIENT && role != Role.SUPER_ADMIN) {
+                        exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                        return exchange.getResponse().setComplete();
+                    }
+                }
+
+                // Analytics Service — MD and Super Admin restrictions
+                if (path.startsWith("/api/v1/analytics")) {
+                    if (path.contains("/superadmin") && role != Role.SUPER_ADMIN) {
+                        exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                        return exchange.getResponse().setComplete();
+                    }
+                    if (role != Role.MANAGING_DIRECTOR && role != Role.CEO && role != Role.SUPER_ADMIN) {
+                        exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                        return exchange.getResponse().setComplete();
+                    }
+                }
+
+                // AI Service — Analytics Copilot restrictions
+                if (path.startsWith("/api/v1/ai")) {
+                    if (path.contains("/analytics-copilot") && role != Role.MANAGING_DIRECTOR && role != Role.CEO && role != Role.SUPER_ADMIN) {
+                        exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+                        return exchange.getResponse().setComplete();
+                    }
+                }
                 
                 // Allow request
                 return chain.filter(exchange);

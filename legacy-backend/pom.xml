@@ -32,15 +32,16 @@
         <module>tenant-service</module>
         <module>hr-service</module>
         <module>employee-service</module>
+        <module>client-service</module>
+        <module>analytics-service</module>
+        <module>notification-service</module>
+        <module>ai-service</module>
         <!-- Future Modules:
         <module>ceo-service</module>
         <module>managing-director-service</module>
         <module>teamlead-service</module>
-        <module>client-service</module>
         <module>project-service</module>
         <module>payroll-service</module>
-        <module>analytics-service</module>
-        <module>notification-service</module>
         <module>audit-service</module>
         -->
     </modules>

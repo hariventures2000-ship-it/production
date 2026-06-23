@@ -1,0 +1,44 @@
+# ═══════════════════════════════════════════════════════════════════
+# MERVI AI SERVICE — Configuration
+# ═══════════════════════════════════════════════════════════════════
+
+server:
+  port: 8092
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: mervi-ai-service
+
+# ─── Gemini / GenAI Configuration ──────────────────────────────────
+gemini:
+  api-key: ${GEMINI_API_KEY:AQ.Ab8RN6IJ_jaF0Z2bH1PgNPZGod_YExhBx6uK1So7ue7Zv2wk6g}
+
+# ─── Actuator ────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+
+# ─── Logging ─────────────────────────────────────────────────────────
+logging:
+  level:
+    com.hariventures.mervi: DEBUG
+    org.springframework.web: INFO
+
+# ─── JWT Configuration ──────────────────────────────────────────────
+mervi:
+  jwt:
+    access-secret: ${JWT_ACCESS_SECRET:mervi-dev-access-secret-minimum-32-chars}
+    refresh-secret: ${JWT_REFRESH_SECRET:mervi-dev-refresh-secret-minimum-32-chars}
+    route-session-secret: ${JWT_ROUTE_SESSION_SECRET:mervi-dev-route-session-secret-32ch}
+    access-expiry: ${JWT_ACCESS_EXPIRY:15m}
+    refresh-expiry: ${JWT_REFRESH_EXPIRY:7d}
+

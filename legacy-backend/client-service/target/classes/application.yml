@@ -1,0 +1,45 @@
+# ═══════════════════════════════════════════════════════════════════
+# MERVI CLIENT SERVICE — Configuration
+# ═══════════════════════════════════════════════════════════════════
+
+server:
+  port: 8089
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: mervi-client-service
+
+  # ─── MongoDB (Dedicated Client DB) ────────────────────────────────
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/mervi_client_db}
+      auto-index-creation: true
+
+  # ─── Kafka ───────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+
+# ─── Actuator ────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+
+# ─── Logging ─────────────────────────────────────────────────────────
+logging:
+  level:
+    com.hariventures.mervi: DEBUG
+    org.springframework.data.mongodb: INFO

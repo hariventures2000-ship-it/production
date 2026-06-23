@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import NotificationBell from "../../components/NotificationBell";
+import ChatbotDrawer from "../../components/ChatbotDrawer";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -59,17 +61,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <h2 className="text-sm font-medium text-gray-800 uppercase tracking-wider">
             {navigation.find(n => pathname === n.href || (n.href !== "/dashboard" && pathname.startsWith(n.href)))?.name || "Dashboard"}
           </h2>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-semibold text-gray-800 leading-tight">Rahul Sharma</p>
-              <p className="text-xs text-gray-500">Sr. Developer</p>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-mervi-blue text-white flex items-center justify-center text-sm font-bold cursor-pointer border-2 border-gray-100">
-              RS
+          <div className="flex items-center gap-4">
+            <NotificationBell />
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-sm font-semibold text-gray-800 leading-tight">Rahul Sharma</p>
+                <p className="text-xs text-gray-500">Sr. Developer</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-mervi-blue text-white flex items-center justify-center text-sm font-bold cursor-pointer border-2 border-gray-100">
+                RS
+              </div>
             </div>
           </div>
         </header>
         <main className="flex-1 overflow-auto p-8 bg-gray-50/50">{children}</main>
+        <ChatbotDrawer />
       </div>
     </div>
   );

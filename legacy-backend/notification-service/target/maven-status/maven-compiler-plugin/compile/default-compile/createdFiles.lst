@@ -1,0 +1,8 @@
+com\hariventures\mervi\notification\config\WebSocketConfig.class
+com\hariventures\mervi\notification\controller\NotificationController.class
+com\hariventures\mervi\notification\model\Notification$NotificationBuilder.class
+com\hariventures\mervi\notification\model\Notification.class
+com\hariventures\mervi\notification\NotificationServiceApplication.class
+com\hariventures\mervi\notification\consumer\NotificationEventConsumer.class
+com\hariventures\mervi\notification\repository\NotificationRepository.class
+com\hariventures\mervi\notification\websocket\NotificationWebSocketHandler.class

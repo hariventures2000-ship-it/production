@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import NotificationBell from "../../components/NotificationBell";
 
 export default function DashboardLayout({
   children,
@@ -70,6 +71,7 @@ export default function DashboardLayout({
             {navigation.find(n => pathname === n.href || pathname.startsWith(n.href + "/"))?.name || "Dashboard"}
           </h2>
           <div className="flex items-center gap-4">
+            <NotificationBell />
             <div className="w-8 h-8 rounded-full bg-mervi-dark text-white flex items-center justify-center text-xs font-bold ring-2 ring-mervi-green/50 cursor-pointer">
               HV
             </div>

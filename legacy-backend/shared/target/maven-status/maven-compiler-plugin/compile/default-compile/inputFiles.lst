@@ -4,6 +4,9 @@ C:\projects\git\production\legacy-backend\shared\src\main\java\com\hariventures\
 C:\projects\git\production\legacy-backend\shared\src\main\java\com\hariventures\mervi\shared\enums\Department.java
 C:\projects\git\production\legacy-backend\shared\src\main\java\com\hariventures\mervi\shared\enums\ProjectStatus.java
 C:\projects\git\production\legacy-backend\shared\src\main\java\com\hariventures\mervi\shared\enums\Role.java
+C:\projects\git\production\legacy-backend\shared\src\main\java\com\hariventures\mervi\shared\event\EmployeeOnboardedEvent.java
+C:\projects\git\production\legacy-backend\shared\src\main\java\com\hariventures\mervi\shared\event\InvoicePaidEvent.java
+C:\projects\git\production\legacy-backend\shared\src\main\java\com\hariventures\mervi\shared\event\ProjectCompletedEvent.java
 C:\projects\git\production\legacy-backend\shared\src\main\java\com\hariventures\mervi\shared\exception\BaseException.java
 C:\projects\git\production\legacy-backend\shared\src\main\java\com\hariventures\mervi\shared\exception\GlobalExceptionHandler.java
 C:\projects\git\production\legacy-backend\shared\src\main\java\com\hariventures\mervi\shared\exception\ResourceNotFoundException.java

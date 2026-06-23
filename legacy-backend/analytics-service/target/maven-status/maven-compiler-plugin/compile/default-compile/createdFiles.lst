@@ -1,0 +1,7 @@
+com\hariventures\mervi\analytics\service\AnalyticsService.class
+com\hariventures\mervi\analytics\controller\AnalyticsController.class
+com\hariventures\mervi\analytics\model\OrganizationAnalytics$OrganizationAnalyticsBuilder.class
+com\hariventures\mervi\analytics\AnalyticsServiceApplication.class
+com\hariventures\mervi\analytics\repository\OrganizationAnalyticsRepository.class
+com\hariventures\mervi\analytics\consumer\AnalyticsEventConsumer.class
+com\hariventures\mervi\analytics\model\OrganizationAnalytics.class

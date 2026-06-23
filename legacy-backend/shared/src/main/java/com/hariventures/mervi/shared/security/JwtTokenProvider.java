@@ -32,9 +32,9 @@ public class JwtTokenProvider {
     private final Duration refreshExpiry;
 
     public JwtTokenProvider(
-            @Value("${mervi.jwt.access-secret}") String accessSecret,
-            @Value("${mervi.jwt.refresh-secret}") String refreshSecret,
-            @Value("${mervi.jwt.route-session-secret}") String routeSessionSecret,
+            @Value("${mervi.jwt.access-secret:mervi-dev-access-secret-minimum-32-chars}") String accessSecret,
+            @Value("${mervi.jwt.refresh-secret:mervi-dev-refresh-secret-minimum-32-chars}") String refreshSecret,
+            @Value("${mervi.jwt.route-session-secret:mervi-dev-route-session-secret-32ch}") String routeSessionSecret,
             @Value("${mervi.jwt.access-expiry:15m}") Duration accessExpiry,
             @Value("${mervi.jwt.refresh-expiry:7d}") Duration refreshExpiry) {
         this.accessKey = Keys.hmacShaKeyFor(padKey(accessSecret));

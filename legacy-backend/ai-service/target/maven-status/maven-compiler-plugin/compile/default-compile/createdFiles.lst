@@ -1,0 +1,4 @@
+com\hariventures\mervi\ai\config\GeminiClientConfig.class
+com\hariventures\mervi\ai\controller\AiController.class
+com\hariventures\mervi\ai\AiServiceApplication.class
+com\hariventures\mervi\ai\service\AiAssistantService.class

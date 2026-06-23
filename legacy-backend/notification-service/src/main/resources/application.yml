@@ -1,0 +1,62 @@
+# ═══════════════════════════════════════════════════════════════════
+# MERVI NOTIFICATION SERVICE — Configuration
+# ═══════════════════════════════════════════════════════════════════
+
+server:
+  port: 8090
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: mervi-notification-service
+
+  # ─── MongoDB (Dedicated Notification DB) ───────────────────────────
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/mervi_notification_db}
+      auto-index-creation: true
+
+  # ─── Kafka ───────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    consumer:
+      group-id: mervi-notification-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.hariventures.mervi.*"
+
+# ─── Actuator ────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+
+# ─── Logging ─────────────────────────────────────────────────────────
+logging:
+  level:
+    com.hariventures.mervi: DEBUG
+    org.springframework.data.mongodb: INFO
+
+# ─── JWT Configuration ──────────────────────────────────────────────
+mervi:
+  jwt:
+    access-secret: ${JWT_ACCESS_SECRET:mervi-dev-access-secret-minimum-32-chars}
+    refresh-secret: ${JWT_REFRESH_SECRET:mervi-dev-refresh-secret-minimum-32-chars}
+    route-session-secret: ${JWT_ROUTE_SESSION_SECRET:mervi-dev-route-session-secret-32ch}
+    access-expiry: ${JWT_ACCESS_EXPIRY:15m}
+    refresh-expiry: ${JWT_REFRESH_EXPIRY:7d}
+
