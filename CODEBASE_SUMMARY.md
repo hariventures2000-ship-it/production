@@ -11,7 +11,7 @@ This summary provides a single source of truth for the codebase layout, microser
 ├── apps/                          # Frontend Portals (Next.js, React, TailwindCSS)
 │   ├── client-portal/             # Port: 3009 (Client dashboard, support tickets, invoices)
 │   ├── employee-portal/           # Port: 3005 (Leave tracking, team logs, HR policies)
-│   ├── frontend/                  # Port: 3000 (Landing page & main entrypoint)
+│   ├── landing-page/              # Port: 3000 (Landing page & main entrypoint)
 │   ├── hr-portal/                 # Port: 3003 (HR administration portal)
 │   ├── md-portal/                 # Port: 3006 (Managing Director high-level dashboard)
 │   ├── super-admin-portal/        # Port: 3000 (Super Admin system-wide controls)
