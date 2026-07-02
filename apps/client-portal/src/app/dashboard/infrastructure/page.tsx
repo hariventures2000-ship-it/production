@@ -13,12 +13,47 @@ import { Server, Globe, Database, Key, ShieldCheck, Mail, Activity, Eye, EyeOff,
 import type { InfraOverview, InfraMonitor } from "@/lib/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/cn";
+import { EnterpriseFilterBar, FilterDefinition } from "@/components/ui/enterprise-filter-bar";
+import { useUrlFilters } from "@/hooks/use-url-filters";
 
 export default function InfrastructurePage() {
   const selectedProjectId = useAppStore((s) => s.selectedProjectId);
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<InfraOverview | null>(null);
   const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
+  const { filters } = useUrlFilters();
+
+  const infraFilters: FilterDefinition[] = [
+    {
+      id: "type",
+      label: "Resource Type",
+      type: "multi-select",
+      options: [
+        { label: "Domain", value: "DOMAIN" },
+        { label: "Hosting", value: "HOSTING" },
+        { label: "SSL", value: "SSL" },
+        { label: "API Key", value: "API_KEY" },
+        { label: "CDN", value: "CDN" }
+      ]
+    },
+    {
+      id: "status",
+      label: "Status",
+      type: "multi-select",
+      options: [
+        { label: "Active", value: "ACTIVE" },
+        { label: "Inactive", value: "INACTIVE" },
+        { label: "Expired", value: "EXPIRED" },
+        { label: "Expiring Soon", value: "EXPIRING_SOON" },
+        { label: "Revoked", value: "REVOKED" }
+      ]
+    },
+    {
+      id: "expiryDate",
+      label: "Expiry Date",
+      type: "date-range"
+    }
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,7 +92,28 @@ export default function InfrastructurePage() {
     assets.push({ id: 'cdn', type: 'CDN', name: 'Global CDN', status: overview.cdn.status, provider: overview.cdn.provider });
   }
 
-  const groupedAssets = assets.reduce((acc, asset) => {
+  const filteredAssets = assets.filter(asset => {
+    if (filters.search) {
+      const search = String(filters.search).toLowerCase();
+      if (!asset.name?.toLowerCase().includes(search) && !asset.provider?.toLowerCase().includes(search)) return false;
+    }
+    if (filters.type && Array.isArray(filters.type) && filters.type.length > 0) {
+      if (!filters.type.includes(asset.type)) return false;
+    }
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      if (!filters.status.includes(asset.status)) return false;
+    }
+    if (filters.expiryDate && typeof filters.expiryDate === 'object') {
+      const { from, to } = filters.expiryDate as any;
+      const docDate = asset.expiresAt ? new Date(asset.expiresAt).getTime() : 0;
+      if (!docDate) return false;
+      if (from && docDate < new Date(from).getTime()) return false;
+      if (to && docDate > new Date(to).getTime()) return false;
+    }
+    return true;
+  });
+
+  const groupedAssets = filteredAssets.reduce((acc, asset) => {
     if (!acc[asset.type]) acc[asset.type] = [];
     acc[asset.type].push(asset);
     return acc;
@@ -108,6 +164,14 @@ export default function InfrastructurePage() {
         </div>
       )}
 
+      <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 shadow-sm">
+        <EnterpriseFilterBar 
+          moduleId="infrastructure"
+          filters={infraFilters}
+          searchPlaceholder="Search infrastructure by name or provider..."
+        />
+      </div>
+
       {/* Asset Management Tabs */}
       <Card>
         <Tabs defaultValue="all" className="w-full">
@@ -123,7 +187,9 @@ export default function InfrastructurePage() {
           </CardHeader>
           <CardContent className="pt-6">
             <TabsContent value="all" className="m-0 space-y-4">
-              {assets.map(asset => (
+              {filteredAssets.length === 0 ? (
+                <div className="p-8 text-center text-[var(--foreground-secondary)] border border-dashed border-[var(--border)] rounded-[var(--radius-md)]">No assets found matching your criteria.</div>
+              ) : filteredAssets.map(asset => (
                 <AssetCard key={asset.id} asset={asset} getIconForType={getIconForType} toggleKeyVisibility={toggleKeyVisibility} visibleKeys={visibleKeys} copyToClipboard={copyToClipboard} />
               ))}
             </TabsContent>

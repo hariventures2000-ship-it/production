@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -17,8 +17,10 @@ import {
   LayoutDashboard, FolderKanban, Milestone as MilestoneIcon, FileText, CheckSquare,
   CreditCard, Server, Video, CalendarDays, LifeBuoy, Bot, Activity,
   Settings, LogOut, Bell, Search, Sun, Moon, PanelLeftClose, PanelLeftOpen,
-  Menu, X, ChevronRight,
+  Menu, X, ChevronRight, ChevronUp, User, Monitor
 } from "lucide-react";
+import { FloatingAIAssistant } from "@/components/floating-ai-assistant";
+import { motion, AnimatePresence } from "framer-motion";
 
 // ── Navigation Configuration ──────────────────────────────────────
 
@@ -115,8 +117,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (isHydrated) {
@@ -188,22 +202,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )}
         >
           {/* Sidebar Header */}
-          <div className={cn("flex items-center border-b border-[var(--sidebar-border)] h-[60px] px-4", sidebarCollapsed && "justify-center")}>
-            <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-lg)] bg-primary text-white text-xs font-bold shrink-0">
-                M
-              </div>
-              {!sidebarCollapsed && (
-                <div className="min-w-0">
-                  <span className="text-sm font-semibold text-[var(--foreground)] block truncate">Mervi</span>
-                  <span className="text-[10px] text-[var(--foreground-muted)] block">Client Portal</span>
+          <div className="flex flex-col border-b border-[var(--sidebar-border)] px-4 py-3">
+            <div className={cn("flex items-center", sidebarCollapsed ? "justify-center" : "justify-between")}>
+              <Link href="/dashboard" className={cn("flex items-center gap-2.5 min-w-0", sidebarCollapsed && "justify-center")}>
+                <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-lg)] bg-primary text-white text-xs font-bold shrink-0">
+                  M
                 </div>
-              )}
-            </Link>
-            {/* Mobile close */}
-            <button onClick={() => setMobileSidebarOpen(false)} className="ml-auto lg:hidden text-[var(--foreground-muted)] hover:text-[var(--foreground)] cursor-pointer">
-              <X className="h-5 w-5" />
-            </button>
+                {!sidebarCollapsed && (
+                  <div className="min-w-0">
+                    <span className="text-sm font-semibold text-[var(--foreground)] block truncate">Mervi</span>
+                    <span className="text-[10px] text-[var(--foreground-muted)] block">Client Portal</span>
+                  </div>
+                )}
+              </Link>
+              {/* Mobile close */}
+              <button onClick={() => setMobileSidebarOpen(false)} className="ml-auto lg:hidden text-[var(--foreground-muted)] hover:text-[var(--foreground)] cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {/* Collapse Toggle — Desktop only */}
+            <div className={cn("hidden lg:flex mt-4", sidebarCollapsed ? "justify-center" : "justify-start")}>
+              <button
+                onClick={toggleSidebar}
+                className="group flex items-center justify-center h-7 w-7 rounded-[var(--radius-md)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors cursor-pointer"
+                aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                <motion.div
+                  initial={false}
+                  animate={{ rotate: sidebarCollapsed ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <PanelLeftClose className="h-4 w-4" />
+                </motion.div>
+              </button>
+            </div>
           </div>
 
           {/* Navigation */}
@@ -244,15 +276,67 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ))}
           </nav>
 
-          {/* Sidebar Footer */}
-          <div className="border-t border-[var(--sidebar-border)] p-2.5">
-            {/* Collapse Toggle — Desktop only */}
+          {/* Sidebar Footer: User Profile */}
+          <div className="relative border-t border-[var(--sidebar-border)] p-2.5" ref={profileMenuRef}>
+            <AnimatePresence>
+              {profileMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className={cn(
+                    "absolute bottom-[calc(100%+8px)] z-50 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--card-bg)] shadow-xl overflow-hidden",
+                    sidebarCollapsed ? "left-2 w-[220px]" : "left-2.5 right-2.5"
+                  )}
+                >
+                  <div className="px-3 py-2 border-b border-[var(--border)] bg-[var(--background-secondary)]">
+                    <p className="text-xs font-medium text-[var(--foreground)] truncate">{user?.firstName} {user?.lastName}</p>
+                    <p className="text-[10px] text-[var(--foreground-muted)] truncate">{user?.email}</p>
+                  </div>
+                  <div className="p-1 space-y-0.5">
+                    <button onClick={() => { setProfileMenuOpen(false); router.push("/dashboard/settings"); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-[var(--foreground-secondary)] hover:bg-[var(--background-secondary)] hover:text-[var(--foreground)] cursor-pointer">
+                      <User className="h-3.5 w-3.5" /> Profile Settings
+                    </button>
+                    <button onClick={() => { setProfileMenuOpen(false); router.push("/dashboard/settings"); }} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-[var(--foreground-secondary)] hover:bg-[var(--background-secondary)] hover:text-[var(--foreground)] cursor-pointer">
+                      <Settings className="h-3.5 w-3.5" /> Account Settings
+                    </button>
+                    <div className="h-px bg-[var(--border)] my-1 mx-2" />
+                    <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs text-[var(--foreground-secondary)] hover:bg-[var(--background-secondary)] hover:text-[var(--foreground)] cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+                        Theme
+                      </div>
+                      <span className="text-[10px] text-[var(--foreground-muted)] uppercase">{theme}</span>
+                    </button>
+                    <div className="h-px bg-[var(--border)] my-1 mx-2" />
+                    <button onClick={handleLogout} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-danger hover:bg-danger-light dark:hover:bg-red-950/30 cursor-pointer">
+                      <LogOut className="h-3.5 w-3.5" /> Sign Out
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <button
-              onClick={toggleSidebar}
-              className="hidden lg:flex items-center justify-center w-full rounded-[var(--radius-md)] py-2 text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--background-secondary)] transition-colors cursor-pointer"
-              aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              className={cn(
+                "flex items-center w-full rounded-[var(--radius-md)] hover:bg-[var(--background-secondary)] transition-colors cursor-pointer text-left",
+                sidebarCollapsed ? "justify-center p-1.5" : "p-1.5 gap-3"
+              )}
             >
-              {sidebarCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              <Avatar size="sm" className="shrink-0 h-8 w-8 border border-[var(--border)]">
+                <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-semibold">{userInitials}</AvatarFallback>
+              </Avatar>
+              {!sidebarCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-[var(--foreground)] truncate">{user?.firstName} {user?.lastName}</p>
+                  <p className="text-[10px] text-[var(--foreground-muted)] truncate">{user?.organizationName}</p>
+                </div>
+              )}
+              {!sidebarCollapsed && (
+                <ChevronUp className={cn("h-4 w-4 shrink-0 text-[var(--foreground-muted)] transition-transform duration-200", profileMenuOpen && "rotate-180")} />
+              )}
             </button>
           </div>
         </aside>
@@ -314,29 +398,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </span>
                 )}
               </Button>
-
-              {/* Theme toggle */}
-              {mounted && (
-                <Button variant="ghost" size="icon-sm" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle theme">
-                  {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-                </Button>
-              )}
-
-              <Separator orientation="vertical" className="h-5 mx-1" />
-
-              {/* User menu */}
-              <div className="flex items-center gap-2">
-                <div className="hidden sm:block text-right">
-                  <p className="text-xs font-medium text-[var(--foreground)] leading-tight">{user?.firstName} {user?.lastName}</p>
-                  <p className="text-[10px] text-[var(--foreground-muted)]">{user?.organizationName}</p>
-                </div>
-                <Avatar size="sm">
-                  <AvatarFallback className="text-[10px] bg-primary/10 text-primary font-semibold">{userInitials}</AvatarFallback>
-                </Avatar>
-                <Button variant="ghost" size="icon-sm" onClick={handleLogout} aria-label="Sign out" className="text-[var(--foreground-muted)] hover:text-danger">
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
           </header>
 
@@ -385,6 +446,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
         )}
+        {/* ── Global Floating AI Assistant ── */}
+        <FloatingAIAssistant />
       </div>
     </TooltipProvider>
   );

@@ -12,11 +12,32 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Video, Calendar, Clock, MapPin, Link as LinkIcon, FileText } from "lucide-react";
 import type { Meeting } from "@/lib/types";
 import { format } from "date-fns";
+import { EnterpriseFilterBar, FilterDefinition } from "@/components/ui/enterprise-filter-bar";
+import { useUrlFilters } from "@/hooks/use-url-filters";
 
 export default function MeetingsPage() {
   const selectedProjectId = useAppStore((s) => s.selectedProjectId);
   const [loading, setLoading] = useState(true);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const { filters } = useUrlFilters();
+
+  const meetingFilters: FilterDefinition[] = [
+    {
+      id: "status",
+      label: "Status",
+      type: "multi-select",
+      options: [
+        { label: "Scheduled", value: "SCHEDULED" },
+        { label: "Completed", value: "COMPLETED" },
+        { label: "Cancelled", value: "CANCELLED" }
+      ]
+    },
+    {
+      id: "dateRange",
+      label: "Meeting Date",
+      type: "date-range"
+    }
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,8 +56,27 @@ export default function MeetingsPage() {
 
   if (loading) return <MeetingsSkeleton />;
 
-  const upcomingMeetings = meetings.filter(m => m.status === 'SCHEDULED').sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-  const pastMeetings = meetings.filter(m => m.status !== 'SCHEDULED').sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+  if (loading) return <MeetingsSkeleton />;
+
+  const filteredMeetings = meetings.filter(m => {
+    if (filters.search) {
+      const search = String(filters.search).toLowerCase();
+      if (!m.title.toLowerCase().includes(search) && !m.description?.toLowerCase().includes(search)) return false;
+    }
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      if (!filters.status.includes(m.status)) return false;
+    }
+    if (filters.dateRange && typeof filters.dateRange === 'object') {
+      const { from, to } = filters.dateRange as any;
+      const docDate = new Date(m.startTime).getTime();
+      if (from && docDate < new Date(from).getTime()) return false;
+      if (to && docDate > new Date(to).getTime()) return false;
+    }
+    return true;
+  });
+
+  const upcomingMeetings = filteredMeetings.filter(m => m.status === 'SCHEDULED').sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  const pastMeetings = filteredMeetings.filter(m => m.status !== 'SCHEDULED').sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
 
   return (
     <div className="space-y-8 max-w-5xl">
@@ -49,7 +89,21 @@ export default function MeetingsPage() {
         <Button>Request Meeting</Button>
       </div>
 
-      {upcomingMeetings.length > 0 && (
+      <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 shadow-sm">
+        <EnterpriseFilterBar 
+          moduleId="meetings"
+          filters={meetingFilters}
+          searchPlaceholder="Search meetings..."
+        />
+      </div>
+
+      {filteredMeetings.length === 0 ? (
+        <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[var(--radius-lg)] p-12 text-center text-[var(--foreground-secondary)]">
+          No meetings found matching your criteria.
+        </div>
+      ) : (
+        <>
+          {upcomingMeetings.length > 0 && (
         <section>
           <h2 className="text-sm font-semibold text-[var(--foreground-muted)] uppercase tracking-wider mb-4">Upcoming Meetings</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -132,6 +186,8 @@ export default function MeetingsPage() {
             </div>
           </Card>
         </section>
+          )}
+        </>
       )}
     </div>
   );

@@ -10,6 +10,9 @@ import { CheckSquare, MessageSquare, Paperclip, AlertCircle, Clock } from "lucid
 import type { Task, TaskStatus } from "@/lib/types";
 import { mockTasks } from "@/lib/mock-data"; // Directly importing mock data as we don't have a task service yet
 import { cn } from "@/lib/cn";
+import { EnterpriseFilterBar, FilterDefinition } from "@/components/ui/enterprise-filter-bar";
+import { useUrlFilters } from "@/hooks/use-url-filters";
+import { useFilterStore } from "@/store/filter.store";
 
 const COLUMNS: { id: TaskStatus; label: string; color: string }[] = [
   { id: 'TODO', label: 'To Do', color: 'bg-slate-500' },
@@ -23,6 +26,44 @@ export default function KanbanPage() {
   const selectedProjectId = useAppStore((s) => s.selectedProjectId);
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const { filters } = useUrlFilters();
+  const { hiddenColumns } = useFilterStore(); // not used here as it's a kanban, but needed for filter logic potentially
+
+  const kanbanFilters: FilterDefinition[] = [
+    {
+      id: "type",
+      label: "Task Type",
+      type: "multi-select",
+      options: [
+        { label: "Feature", value: "FEATURE" },
+        { label: "Bug", value: "BUG" },
+        { label: "Chore", value: "CHORE" },
+        { label: "Spike", value: "SPIKE" },
+        { label: "Story", value: "STORY" }
+      ]
+    },
+    {
+      id: "priority",
+      label: "Priority",
+      type: "multi-select",
+      options: [
+        { label: "Low", value: "LOW" },
+        { label: "Medium", value: "MEDIUM" },
+        { label: "High", value: "HIGH" },
+        { label: "Critical", value: "CRITICAL" }
+      ]
+    },
+    {
+      id: "dueDate",
+      label: "Due Date",
+      type: "date-range"
+    }
+  ];
+
+  const kanbanColumns = [
+    { id: "tags", label: "Tags" },
+    { id: "assignee", label: "Assignee" }
+  ];
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -38,7 +79,27 @@ export default function KanbanPage() {
   }, [selectedProjectId]);
 
   if (loading) return <KanbanSkeleton />;
-  if (tasks.length === 0) return <div className="p-8 text-center text-[var(--foreground-secondary)]">No active tasks found.</div>;
+
+  const filteredTasks = tasks.filter(task => {
+    if (filters.search) {
+      const search = String(filters.search).toLowerCase();
+      if (!task.title.toLowerCase().includes(search) && !task.description.toLowerCase().includes(search)) return false;
+    }
+    if (filters.type && Array.isArray(filters.type) && filters.type.length > 0) {
+      if (!filters.type.includes(task.type)) return false;
+    }
+    if (filters.priority && Array.isArray(filters.priority) && filters.priority.length > 0) {
+      if (!filters.priority.includes(task.priority)) return false;
+    }
+    if (filters.dueDate && typeof filters.dueDate === 'object') {
+      const { from, to } = filters.dueDate as any;
+      const docDate = task.dueDate ? new Date(task.dueDate).getTime() : 0;
+      if (!docDate) return false;
+      if (from && docDate < new Date(from).getTime()) return false;
+      if (to && docDate > new Date(to).getTime()) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="flex flex-col h-[calc(100vh-140px)]">
@@ -50,10 +111,22 @@ export default function KanbanPage() {
         />
       </div>
 
+      <div className="shrink-0 mb-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 shadow-sm">
+        <EnterpriseFilterBar 
+          moduleId="kanban"
+          filters={kanbanFilters}
+          columns={kanbanColumns}
+          searchPlaceholder="Search tasks..."
+        />
+      </div>
+
+      {tasks.length === 0 ? (
+        <div className="p-8 text-center text-[var(--foreground-secondary)]">No active tasks found.</div>
+      ) : (
       <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4">
         <div className="flex gap-4 h-full min-w-max px-1">
           {COLUMNS.map(column => {
-            const columnTasks = tasks.filter(t => t.status === column.id);
+            const columnTasks = filteredTasks.filter(t => t.status === column.id);
             return (
               <div key={column.id} className="flex flex-col w-[320px] h-full bg-[var(--background-secondary)] rounded-xl border border-[var(--border)] shrink-0 overflow-hidden">
                 {/* Column Header */}
@@ -83,6 +156,7 @@ export default function KanbanPage() {
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }

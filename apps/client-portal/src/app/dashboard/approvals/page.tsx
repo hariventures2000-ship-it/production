@@ -10,10 +10,52 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CheckSquare, Check, X, MessageSquare, AlertCircle } from "lucide-react";
 import type { ApprovalItem } from "@/lib/types";
+import { EnterpriseFilterBar, FilterDefinition } from "@/components/ui/enterprise-filter-bar";
+import { useUrlFilters } from "@/hooks/use-url-filters";
 
 export default function ApprovalCenterPage() {
   const [loading, setLoading] = useState(true);
   const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
+  const { filters } = useUrlFilters();
+
+  const approvalFilters: FilterDefinition[] = [
+    {
+      id: "type",
+      label: "Approval Type",
+      type: "multi-select",
+      options: [
+        { label: "Milestone", value: "MILESTONE" },
+        { label: "Document", value: "DOCUMENT" },
+        { label: "Design", value: "DESIGN" },
+        { label: "Deliverable", value: "DELIVERABLE" }
+      ]
+    },
+    {
+      id: "priority",
+      label: "Priority",
+      type: "multi-select",
+      options: [
+        { label: "Normal", value: "NORMAL" },
+        { label: "Urgent", value: "URGENT" }
+      ]
+    },
+    {
+      id: "status",
+      label: "Status",
+      type: "multi-select",
+      options: [
+        { label: "Pending", value: "PENDING" },
+        { label: "Approved", value: "APPROVED" },
+        { label: "Rejected", value: "REJECTED" },
+        { label: "Changes Requested", value: "CHANGES_REQUESTED" }
+      ]
+    },
+    {
+      id: "dateRange",
+      label: "Approval Date",
+      type: "date-range"
+    }
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,8 +83,32 @@ export default function ApprovalCenterPage() {
 
   if (loading) return <ApprovalsSkeleton />;
 
-  const pendingApprovals = approvals.filter(a => a.status === 'PENDING');
-  const pastApprovals = approvals.filter(a => a.status !== 'PENDING');
+  const filteredApprovals = approvals.filter(item => {
+    if (filters.search) {
+      const search = String(filters.search).toLowerCase();
+      const submitter = `${item.submittedBy.firstName} ${item.submittedBy.lastName}`.toLowerCase();
+      if (!item.title.toLowerCase().includes(search) && !item.description.toLowerCase().includes(search) && !submitter.includes(search)) return false;
+    }
+    if (filters.type && Array.isArray(filters.type) && filters.type.length > 0) {
+      if (!filters.type.includes(item.type)) return false;
+    }
+    if (filters.priority && Array.isArray(filters.priority) && filters.priority.length > 0) {
+      if (!filters.priority.includes(item.priority)) return false;
+    }
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      if (!filters.status.includes(item.status)) return false;
+    }
+    if (filters.dateRange && typeof filters.dateRange === 'object') {
+      const { from, to } = filters.dateRange as any;
+      const docDate = new Date(item.submittedAt).getTime();
+      if (from && docDate < new Date(from).getTime()) return false;
+      if (to && docDate > new Date(to).getTime()) return false;
+    }
+    return true;
+  });
+
+  const pendingApprovals = filteredApprovals.filter(a => a.status === 'PENDING');
+  const pastApprovals = filteredApprovals.filter(a => a.status !== 'PENDING');
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -52,7 +118,23 @@ export default function ApprovalCenterPage() {
         icon={CheckSquare}
       />
 
-      {pendingApprovals.length === 0 ? (
+      <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 shadow-sm">
+        <EnterpriseFilterBar 
+          moduleId="approvals"
+          filters={approvalFilters}
+          searchPlaceholder="Search approvals or submitters..."
+        />
+      </div>
+
+      {filteredApprovals.length === 0 ? (
+        <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[var(--radius-lg)] p-12 flex flex-col items-center text-center">
+          <div className="h-16 w-16 rounded-full bg-[var(--background-secondary)] text-[var(--foreground-muted)] flex items-center justify-center mb-4">
+            <CheckSquare className="h-8 w-8" />
+          </div>
+          <h2 className="text-lg font-semibold text-[var(--foreground)]">No Approvals Found</h2>
+          <p className="text-sm text-[var(--foreground-secondary)] mt-1">Try adjusting your filters or search query.</p>
+        </div>
+      ) : pendingApprovals.length === 0 && pastApprovals.length === 0 ? (
         <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[var(--radius-lg)] p-12 flex flex-col items-center text-center">
           <div className="h-16 w-16 rounded-full bg-success/10 text-success flex items-center justify-center mb-4">
             <Check className="h-8 w-8" />
@@ -60,7 +142,7 @@ export default function ApprovalCenterPage() {
           <h2 className="text-lg font-semibold text-[var(--foreground)]">All Caught Up!</h2>
           <p className="text-sm text-[var(--foreground-secondary)] mt-1">There are no items currently awaiting your approval.</p>
         </div>
-      ) : (
+      ) : pendingApprovals.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-sm font-semibold text-[var(--foreground-muted)] uppercase tracking-wider mb-2">Requires Action</h3>
           {pendingApprovals.map((item) => (

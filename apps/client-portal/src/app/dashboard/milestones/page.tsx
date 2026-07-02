@@ -12,11 +12,46 @@ import { Progress } from "@/components/ui/progress";
 import { Milestone as MilestoneIcon, CheckCircle2, Lock, Unlock, FileText } from "lucide-react";
 import type { Milestone } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { EnterpriseFilterBar, FilterDefinition } from "@/components/ui/enterprise-filter-bar";
+import { useUrlFilters } from "@/hooks/use-url-filters";
 
 export default function MilestonesPage() {
   const selectedProjectId = useAppStore((s) => s.selectedProjectId);
   const [loading, setLoading] = useState(true);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const { filters } = useUrlFilters();
+
+  const milestoneFilters: FilterDefinition[] = [
+    {
+      id: "status",
+      label: "Status",
+      type: "multi-select",
+      options: [
+        { label: "Pending", value: "PENDING" },
+        { label: "In Progress", value: "IN_PROGRESS" },
+        { label: "In QA", value: "IN_QA" },
+        { label: "Awaiting Approval", value: "AWAITING_APPROVAL" },
+        { label: "Approved", value: "APPROVED" },
+        { label: "Rejected", value: "REJECTED" }
+      ]
+    },
+    {
+      id: "paymentStatus",
+      label: "Payment Status",
+      type: "multi-select",
+      options: [
+        { label: "Locked", value: "LOCKED" },
+        { label: "Unlocked", value: "UNLOCKED" },
+        { label: "Invoiced", value: "INVOICED" },
+        { label: "Paid", value: "PAID" }
+      ]
+    },
+    {
+      id: "dueDate",
+      label: "Due Date",
+      type: "date-range"
+    }
+  ];
 
   useEffect(() => {
     if (!selectedProjectId) return;
@@ -36,6 +71,26 @@ export default function MilestonesPage() {
 
   if (loading) return <MilestonesSkeleton />;
 
+  const filteredMilestones = milestones.filter(ms => {
+    if (filters.search) {
+      const search = String(filters.search).toLowerCase();
+      if (!ms.title.toLowerCase().includes(search) && !ms.description.toLowerCase().includes(search)) return false;
+    }
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      if (!filters.status.includes(ms.status)) return false;
+    }
+    if (filters.paymentStatus && Array.isArray(filters.paymentStatus) && filters.paymentStatus.length > 0) {
+      if (!filters.paymentStatus.includes(ms.paymentStatus)) return false;
+    }
+    if (filters.dueDate && typeof filters.dueDate === 'object') {
+      const { from, to } = filters.dueDate as any;
+      const docDate = new Date(ms.dueDate).getTime();
+      if (from && docDate < new Date(from).getTime()) return false;
+      if (to && docDate > new Date(to).getTime()) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-6 max-w-4xl">
       <PageHeader
@@ -44,8 +99,18 @@ export default function MilestonesPage() {
         icon={MilestoneIcon}
       />
 
+      <div className="mb-6 bg-[var(--card-bg)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 shadow-sm">
+        <EnterpriseFilterBar 
+          moduleId="milestones"
+          filters={milestoneFilters}
+          searchPlaceholder="Search milestones..."
+        />
+      </div>
+
       <div className="space-y-6">
-        {milestones.map((milestone, index) => {
+        {filteredMilestones.length === 0 ? (
+          <div className="p-8 text-center text-[var(--foreground-secondary)] bg-[var(--card-bg)] rounded-[var(--radius-lg)] border border-[var(--border)]">No milestones match your criteria.</div>
+        ) : filteredMilestones.map((milestone, index) => {
           const isPaid = milestone.paymentStatus === 'PAID';
           const isUnlocked = milestone.paymentStatus === 'UNLOCKED' || milestone.paymentStatus === 'INVOICED';
           

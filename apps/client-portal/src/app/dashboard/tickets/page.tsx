@@ -9,16 +9,59 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { LifeBuoy, Plus, Search, MessageSquare, AlertCircle } from "lucide-react";
+import { LifeBuoy, Plus, MessageSquare, AlertCircle } from "lucide-react";
 import type { SupportTicket } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { EnterpriseFilterBar, FilterDefinition } from "@/components/ui/enterprise-filter-bar";
+import { useUrlFilters } from "@/hooks/use-url-filters";
 
 export default function SupportCenterPage() {
   const selectedProjectId = useAppStore((s) => s.selectedProjectId);
   const [loading, setLoading] = useState(true);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
+  const { filters } = useUrlFilters();
+
+  const ticketFilters: FilterDefinition[] = [
+    {
+      id: "status",
+      label: "Status",
+      type: "multi-select",
+      options: [
+        { label: "Open", value: "OPEN" },
+        { label: "In Progress", value: "IN_PROGRESS" },
+        { label: "Awaiting Client", value: "AWAITING_CLIENT" },
+        { label: "Resolved", value: "RESOLVED" },
+        { label: "Closed", value: "CLOSED" }
+      ]
+    },
+    {
+      id: "type",
+      label: "Category",
+      type: "multi-select",
+      options: [
+        { label: "Bug Report", value: "BUG_REPORT" },
+        { label: "Feature Request", value: "FEATURE_REQUEST" },
+        { label: "General", value: "GENERAL" },
+        { label: "Billing", value: "BILLING" }
+      ]
+    },
+    {
+      id: "priority",
+      label: "Priority",
+      type: "multi-select",
+      options: [
+        { label: "Low", value: "LOW" },
+        { label: "Medium", value: "MEDIUM" },
+        { label: "High", value: "HIGH" },
+        { label: "Critical", value: "CRITICAL" }
+      ]
+    },
+    {
+      id: "dateRange",
+      label: "Created Date",
+      type: "date-range"
+    }
+  ];
 
   useEffect(() => {
     if (!selectedProjectId) return;
@@ -38,7 +81,28 @@ export default function SupportCenterPage() {
 
   if (loading) return <TicketsSkeleton />;
 
-  const filteredTickets = tickets.filter(t => t.subject.toLowerCase().includes(searchQuery.toLowerCase()) || t.ticketNumber.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredTickets = tickets.filter(t => {
+    if (filters.search) {
+      const search = String(filters.search).toLowerCase();
+      if (!t.subject.toLowerCase().includes(search) && !t.ticketNumber.toLowerCase().includes(search)) return false;
+    }
+    if (filters.status && Array.isArray(filters.status) && filters.status.length > 0) {
+      if (!filters.status.includes(t.status)) return false;
+    }
+    if (filters.type && Array.isArray(filters.type) && filters.type.length > 0) {
+      if (!filters.type.includes(t.type)) return false;
+    }
+    if (filters.priority && Array.isArray(filters.priority) && filters.priority.length > 0) {
+      if (!filters.priority.includes(t.priority)) return false;
+    }
+    if (filters.dateRange && typeof filters.dateRange === 'object') {
+      const { from, to } = filters.dateRange as any;
+      const docDate = new Date(t.createdAt).getTime();
+      if (from && docDate < new Date(from).getTime()) return false;
+      if (to && docDate > new Date(to).getTime()) return false;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -53,27 +117,18 @@ export default function SupportCenterPage() {
         </Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="flex-1 max-w-sm">
-          <Input 
-            icon={<Search className="h-4 w-4" />} 
-            placeholder="Search tickets by ID or title..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        <div className="w-full sm:w-48">
-          <Select options={[
-            { label: 'All Statuses', value: 'ALL' },
-            { label: 'Open', value: 'OPEN' },
-            { label: 'In Progress', value: 'IN_PROGRESS' },
-            { label: 'Resolved', value: 'RESOLVED' }
-          ]} />
-        </div>
+      <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 mb-6 shadow-sm">
+        <EnterpriseFilterBar 
+          moduleId="tickets"
+          filters={ticketFilters}
+          searchPlaceholder="Search tickets by ID or subject..."
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-3">
-        {filteredTickets.map(ticket => (
+        {filteredTickets.length === 0 ? (
+          <div className="p-8 text-center text-[var(--foreground-secondary)] bg-[var(--card-bg)] border border-[var(--border)] rounded-[var(--radius-lg)]">No tickets found matching your criteria.</div>
+        ) : filteredTickets.map(ticket => (
           <Card key={ticket.id} className="hover:border-primary/50 transition-colors cursor-pointer group">
             <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="flex-1 min-w-0">

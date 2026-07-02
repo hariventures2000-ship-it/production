@@ -14,12 +14,28 @@ import {
   isSameMonth, isSameDay, isToday, parseISO
 } from "date-fns";
 import { cn } from "@/lib/cn";
+import { EnterpriseFilterBar, FilterDefinition } from "@/components/ui/enterprise-filter-bar";
+import { useUrlFilters } from "@/hooks/use-url-filters";
 
 export default function CalendarPage() {
   const selectedProjectId = useAppStore((s) => s.selectedProjectId);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const { filters } = useUrlFilters();
+
+  const calendarFilters: FilterDefinition[] = [
+    {
+      id: "type",
+      label: "Event Type",
+      type: "multi-select",
+      options: [
+        { label: "Meeting", value: "MEETING" },
+        { label: "Milestone", value: "MILESTONE" },
+        { label: "Deadline", value: "DEADLINE" }
+      ]
+    }
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -51,8 +67,19 @@ export default function CalendarPage() {
   const paddingDays = Array.from({ length: startDayOfWeek }).map((_, i) => i);
 
   const getDayEvents = (date: Date) => {
-    return events.filter(e => isSameDay(parseISO(e.startDate), date));
+    return filteredEvents.filter(e => isSameDay(parseISO(e.startDate), date));
   };
+
+  const filteredEvents = events.filter(e => {
+    if (filters.search) {
+      const search = String(filters.search).toLowerCase();
+      if (!e.title.toLowerCase().includes(search) && !e.description?.toLowerCase().includes(search)) return false;
+    }
+    if (filters.type && Array.isArray(filters.type) && filters.type.length > 0) {
+      if (!filters.type.includes(e.type)) return false;
+    }
+    return true;
+  });
 
   const getEventIcon = (type: string) => {
     switch (type) {
@@ -94,6 +121,14 @@ export default function CalendarPage() {
             </Button>
           </div>
         </div>
+      </div>
+
+      <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[var(--radius-lg)] p-4 shadow-sm">
+        <EnterpriseFilterBar 
+          moduleId="calendar"
+          filters={calendarFilters}
+          searchPlaceholder="Search calendar events..."
+        />
       </div>
 
       <Card>
