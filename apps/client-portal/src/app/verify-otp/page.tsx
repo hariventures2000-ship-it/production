@@ -14,12 +14,14 @@ export default function VerifyOtpPage() {
 
   const tempEmail = useAuthStore((state) => state.tempEmail);
   const setAuth = useAuthStore((state) => state.setAuth);
+  const setAccessToken = useAuthStore((state) => state.setAccessToken);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   useEffect(() => {
-    if (!tempEmail) {
+    if (!tempEmail && !isAuthenticated) {
       router.push("/");
     }
-  }, [tempEmail, router]);
+  }, [tempEmail, isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,16 +41,18 @@ export default function VerifyOtpPage() {
       // and we can decode it or fetch a mock user profile. Since we need firstName,
       // let's build a session payload.
       const mockSession = {
-        userId: "mock-client-id",
-        role: "CLIENT" as any,
-        authType: "CLIENT" as any,
-        tenantId: "6676aa9ae9a701309909dcda",
+        id: "mock-client-id",
+        email: tempEmail || "client@hariventures.com",
         firstName: "Client",
         lastName: "User",
-        email: tempEmail || "client@hariventures.com"
+        role: "CLIENT" as const,
+        tenantId: "6676aa9ae9a701309909dcda",
+        organizationName: "TechCorp Inc.",
+        mfaEnabled: true,
       };
 
-      setAuth(token, mockSession);
+      setAccessToken(token);
+      setAuth(mockSession);
       router.push("/dashboard");
     } catch (err: unknown) {
       if (err instanceof AxiosError && err.response) {

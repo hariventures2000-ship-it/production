@@ -1,285 +1,371 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { get } from "@/lib/api-client";
-import { useAuthStore } from "@/store/auth.store";
-import { 
-  FolderKanban, 
-  Clock, 
-  CheckCircle2, 
-  FileText, 
-  MessageSquare, 
-  ChevronDown, 
-  Download,
-  AlertCircle
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { projectService } from "@/lib/services/project.service";
+import { milestoneService } from "@/lib/services/milestone.service";
+import { meetingService } from "@/lib/services/meeting.service";
+import { approvalService } from "@/lib/services/approval.service";
+import { activityService } from "@/lib/services/activity.service";
+import { billingService } from "@/lib/services/billing.service";
+import { useAppStore } from "@/store/app.store";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { StatusBadge } from "@/components/status-badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Select } from "@/components/ui/select";
+import {
+  LayoutDashboard, FolderKanban, CheckSquare, CalendarDays,
+  FileText, CreditCard, AlertCircle, Clock, ChevronRight, MessageSquare, Briefcase
 } from "lucide-react";
+import type { Project, Milestone, Meeting, ApprovalItem, ActivityEntry, Invoice } from "@/lib/types";
+import { cn } from "@/lib/cn";
 
-export default function ClientDashboardPage() {
-  const user = useAuthStore((state) => state.user);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  
-  const [projectDetails, setProjectDetails] = useState<any>(null);
-  const [milestones, setMilestones] = useState<any[]>([]);
-  const [updates, setUpdates] = useState<any[]>([]);
-  const [documents, setDocuments] = useState<any[]>([]);
-  
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDetailsLoading, setIsDetailsLoading] = useState(false);
+export default function DashboardPage() {
+  const router = useRouter();
+  const selectedProjectId = useAppStore((s) => s.selectedProjectId);
+  const setSelectedProjectId = useAppStore((s) => s.setSelectedProjectId);
+  const [loading, setLoading] = useState(true);
+
+  // Data states
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeProject, setActiveProject] = useState<Project | null>(null);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
+  const [activities, setActivities] = useState<ActivityEntry[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchData = async () => {
+      setLoading(true);
       try {
-        const data = await get<any[]>('/client-portal/projects');
-        setProjects(data);
-        if (data.length > 0) {
-          setSelectedProjectId(data[0].id); // check id since backend returns standard string id
+        const projs = await projectService.getProjects();
+        setProjects(projs);
+        const currentProj = projs.find(p => p.id === selectedProjectId) || projs[0];
+        if (currentProj) {
+          if (!selectedProjectId) setSelectedProjectId(currentProj.id);
+          setActiveProject(currentProj);
+
+          const [ms, mtgs, apps, acts, invs] = await Promise.all([
+            milestoneService.getMilestones(currentProj.id),
+            meetingService.getMeetings(), // Assuming we want all or filter by project in real app
+            approvalService.getPendingApprovals(),
+            activityService.getActivity({ projectId: currentProj.id }),
+            billingService.getInvoices({ status: 'PENDING' })
+          ]);
+          setMilestones(ms);
+          setMeetings(mtgs);
+          setApprovals(apps.filter(a => a.relatedProjectId === currentProj.id));
+          setActivities(acts.slice(0, 5));
+          setInvoices(invs.filter(i => i.projectId === currentProj.id));
         }
-      } catch (err: any) {
-        console.error("Failed to fetch projects", err);
+      } catch (error) {
+        console.error("Error fetching dashboard data", error);
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
-    fetchProjects();
-  }, []);
+    fetchData();
+  }, [selectedProjectId, setSelectedProjectId]);
 
-  useEffect(() => {
-    if (!selectedProjectId) return;
-    const fetchDetails = async () => {
-      setIsDetailsLoading(true);
-      try {
-        const [projData, mileData, updData, docData] = await Promise.all([
-          get<any>(`/client-portal/projects/${selectedProjectId}`),
-          get<any[]>(`/client-portal/projects/${selectedProjectId}/milestones`),
-          get<any[]>(`/client-portal/projects/${selectedProjectId}/updates`),
-          get<any[]>(`/client-portal/projects/${selectedProjectId}/documents`),
-        ]);
-        setProjectDetails(projData);
-        setMilestones(mileData);
-        setUpdates(updData);
-        setDocuments(docData);
-      } catch (err) {
-        console.error("Failed to fetch project details", err);
-      } finally {
-        setIsDetailsLoading(false);
-      }
-    };
-    fetchDetails();
-  }, [selectedProjectId]);
-
-  const handleDownload = async (docId: string) => {
-    try {
-      const res = await get<{url: string, name: string}>(`/client-portal/projects/${selectedProjectId}/documents/${docId}/download`);
-      if (res?.url) {
-        // Direct download
-        const fullUrl = res.url.startsWith('http') ? res.url : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}${res.url}`;
-        window.open(fullUrl, "_blank");
-      }
-    } catch (err) {
-      console.error("Failed to download document", err);
-    }
+  const handleProjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedProjectId(e.target.value);
   };
 
-  if (isLoading) {
-    return <div className="p-8 text-center text-slate-400">Loading your dashboard...</div>;
+  if (loading) {
+    return <DashboardSkeleton />;
   }
 
+  if (!activeProject) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh]">
+        <Briefcase className="h-12 w-12 text-[var(--foreground-muted)] mb-4" />
+        <h2 className="text-xl font-semibold text-[var(--foreground)]">No Projects Found</h2>
+        <p className="text-sm text-[var(--foreground-secondary)] mt-2">You don't have any active projects.</p>
+      </div>
+    );
+  }
+
+  const currentMilestone = milestones.find(m => m.status === 'IN_PROGRESS' || m.status === 'AWAITING_APPROVAL') || milestones[0];
+  const pendingInvoice = invoices[0];
+  const nextMeeting = meetings.find(m => m.status === 'SCHEDULED');
+
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12">
+    <div className="space-y-6">
       {/* Header & Project Selector */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-lg">
-        <div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">Console Overview</h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Welcome back, {user?.firstName}. Keep track of your live operations.
-          </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <PageHeader
+          title="Overview"
+          description="A summary of your project's current state."
+          icon={LayoutDashboard}
+        />
+        <div className="w-full sm:w-64">
+          <Select
+            value={activeProject.id}
+            onChange={handleProjectChange}
+            options={projects.map(p => ({ value: p.id, label: p.name }))}
+            aria-label="Select Project"
+          />
         </div>
-        
-        {projects.length > 0 && (
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-semibold text-slate-400">Select Project:</label>
-            <div className="relative">
-              <select 
-                className="appearance-none bg-slate-950 border border-slate-800 text-white text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block w-64 p-3 pr-10 outline-none transition-all cursor-pointer font-medium"
-                value={selectedProjectId || ''}
-                onChange={(e) => setSelectedProjectId(e.target.value)}
-              >
-                {projects.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-              <ChevronDown className="absolute right-3.5 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
-            </div>
-          </div>
-        )}
       </div>
 
-      {!selectedProjectId ? (
-        <div className="bg-slate-900/40 border border-dashed border-slate-800 rounded-3xl p-16 text-center">
-          <FolderKanban className="h-14 w-14 text-slate-600 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-white">No active projects</h3>
-          <p className="text-sm text-slate-400 mt-1">You currently do not have any active projects linked to your account.</p>
+      {/* Alert Banners */}
+      {pendingInvoice && (
+        <div className="flex items-center justify-between p-4 rounded-[var(--radius-lg)] bg-warning-light dark:bg-amber-950 border border-amber-200 dark:border-amber-800">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <div>
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">Payment Due: {pendingInvoice.currency} {pendingInvoice.totalAmount.toLocaleString()}</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">Invoice {pendingInvoice.invoiceNumber} for milestone "{pendingInvoice.milestoneTitle}"</p>
+            </div>
+          </div>
+          <Button size="sm" variant="outline" className="border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900" onClick={() => router.push('/dashboard/billing')}>
+            Pay Now
+          </Button>
         </div>
-      ) : isDetailsLoading ? (
-        <div className="p-12 text-center text-slate-400 animate-pulse">Fetching project details...</div>
-      ) : projectDetails ? (
-        <>
-          {/* Project Overview Cards */}
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-semibold text-slate-400">Current Phase</span>
-                <FolderKanban className="h-5 w-5 text-indigo-400" />
+      )}
+
+      {/* Stats Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Current Phase"
+          value={activeProject.currentPhase}
+          icon={FolderKanban}
+          iconColor="text-blue-500"
+          subtitle={<StatusBadge status={activeProject.health} className="mt-1" />}
+        />
+        <StatCard
+          title="Completion"
+          value={`${activeProject.completionPercentage}%`}
+          icon={CheckSquare}
+          iconColor="text-emerald-500"
+          subtitle="Overall project progress"
+        />
+        <StatCard
+          title="Est. Delivery"
+          value={new Date(activeProject.estimatedEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          icon={CalendarDays}
+          iconColor="text-purple-500"
+          subtitle={`${Math.ceil((new Date(activeProject.estimatedEndDate).getTime() - new Date().getTime()) / (1000 * 3600 * 24))} days remaining`}
+        />
+        <StatCard
+          title="Pending Approvals"
+          value={approvals.length.toString()}
+          icon={FileText}
+          iconColor="text-amber-500"
+          subtitle="Items needing your review"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Column */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Milestone Progress */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Milestone Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="font-medium text-[var(--foreground)]">{currentMilestone?.title || 'No active milestone'}</span>
+                  <StatusBadge status={currentMilestone?.status || 'PENDING'} />
+                </div>
+                <Progress value={currentMilestone?.completionPercentage || 0} className="h-2" />
+                <div className="flex justify-between text-xs text-[var(--foreground-secondary)]">
+                  <span>{currentMilestone?.completionPercentage || 0}% Complete</span>
+                  {currentMilestone?.dueDate && <span>Due: {new Date(currentMilestone.dueDate).toLocaleDateString()}</span>}
+                </div>
+                <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => router.push('/dashboard/milestones')}>
+                  View All Milestones
+                </Button>
               </div>
-              <div className="text-xl font-extrabold text-white truncate">{projectDetails.currentPhase}</div>
-              <p className="text-[10px] text-indigo-400 mt-2 uppercase font-extrabold tracking-wider bg-indigo-500/10 px-2 py-0.5 rounded w-fit">
-                {projectDetails.status.replace('_', ' ')}
+            </CardContent>
+          </Card>
+
+          {/* AI Summary */}
+          <Card className="bg-primary-50 dark:bg-primary-900/10 border-primary/20">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-6 rounded-md bg-primary/20 text-primary flex items-center justify-center">
+                  <MessageSquare className="h-3 w-3" />
+                </div>
+                <CardTitle className="text-primary text-sm">Project Digest</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-[var(--foreground)] leading-relaxed">
+                The project is currently <span className="font-semibold text-success">on track</span>.
+                The {activeProject.currentPhase} phase is progressing well at {activeProject.completionPercentage}% completion.
+                {approvals.length > 0 ? ` There are ${approvals.length} items awaiting your approval to proceed to the next stage.` : ' No immediate blockers.'}
               </p>
-            </div>
+            </CardContent>
+          </Card>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-semibold text-slate-400">Overall Progress</span>
-                <span className="text-sm font-extrabold text-indigo-400">%</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-2xl font-extrabold text-white">{projectDetails.completionPercentage || 0}%</div>
-                <div className="h-2 w-full bg-slate-950 rounded-full overflow-hidden flex-1">
-                  <div className="h-full bg-gradient-to-r from-mervi-cyan to-mervi-blue rounded-full transition-all duration-1000" style={{ width: `${projectDetails.completionPercentage || 0}%` }} />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-semibold text-slate-400">Target Completion</span>
-                <Clock className="h-5 w-5 text-mervi-cyan" />
-              </div>
-              <div className="text-2xl font-extrabold text-white">
-                {new Date(projectDetails.estimatedEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              </div>
-            </div>
-            
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-semibold text-slate-400">Milestones Completed</span>
-                <CheckCircle2 className="h-5 w-5 text-mervi-teal" />
-              </div>
-              <div className="text-2xl font-extrabold text-white">
-                {milestones.filter(m => m.status === 'COMPLETED').length} <span className="text-base text-slate-500 font-normal">/ {milestones.length}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-8 md:grid-cols-3">
-            {/* Left Column: Updates & Documents */}
-            <div className="md:col-span-2 space-y-8">
-              
-              {/* Project Updates Feed */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-md overflow-hidden">
-                <div className="px-6 py-5 border-b border-slate-800 bg-slate-900/60 flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-indigo-400" />
-                  <h3 className="font-extrabold text-white text-base">Project Updates</h3>
-                </div>
-                <div className="p-0">
-                  {updates.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500">No updates posted yet.</div>
-                  ) : (
-                    <div className="divide-y divide-slate-850">
-                      {updates.map(update => (
-                        <div key={update.id} className="p-6 hover:bg-slate-850/30 transition-colors">
-                          <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-bold text-white text-sm">{update.title}</h4>
-                            <span className="text-[10px] text-slate-400 bg-slate-950 px-2 py-0.5 rounded font-medium border border-slate-800">
-                              {update.createdAt ? new Date(update.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Recent'}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-400 whitespace-pre-wrap leading-relaxed">{update.description}</p>
-                        </div>
-                      ))}
+          {/* Activity Timeline */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle>Recent Activity</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => router.push('/dashboard/activity')}>View All</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {activities.map((activity, i) => (
+                  <div key={activity.id} className="flex gap-3 relative">
+                    {i !== activities.length - 1 && <div className="absolute left-4 top-8 bottom-[-16px] w-px bg-[var(--border)]" />}
+                    <Avatar size="sm" className="ring-4 ring-[var(--card-bg)] shrink-0">
+                      <AvatarFallback>{activity.actor.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 pb-1">
+                      <div className="flex justify-between items-start">
+                        <p className="text-sm text-[var(--foreground)] font-medium">{activity.title}</p>
+                        <span className="text-[10px] text-[var(--foreground-muted)] shrink-0 ml-2">
+                          {new Date(activity.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--foreground-secondary)] mt-0.5">{activity.description}</p>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Documents Section */}
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-md p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <FileText className="h-5 w-5 text-mervi-cyan" />
-                  <h3 className="font-extrabold text-white text-base">Approved Documents</h3>
-                </div>
-                {documents.length === 0 ? (
-                  <div className="text-center text-slate-500 py-4">No documents available.</div>
-                ) : (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {documents.map(doc => (
-                      <div key={doc.id} className="flex items-center justify-between p-4 rounded-xl border border-slate-800 hover:border-indigo-500/40 hover:bg-slate-950/30 transition-all group bg-slate-900">
-                        <div className="flex items-center gap-3 overflow-hidden">
-                          <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg">
-                            <FileText className="h-5 w-5" />
-                          </div>
-                          <div className="truncate">
-                            <p className="text-xs font-bold text-white truncate">{doc.name}</p>
-                            <p className="text-[10px] text-slate-400 uppercase mt-0.5 font-medium">{doc.type} • {(doc.sizeBytes / 1024 / 1024).toFixed(2)} MB</p>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => handleDownload(doc.id)} 
-                          className="p-2 text-slate-400 hover:text-white bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Download className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
                   </div>
-                )}
+                ))}
               </div>
-            </div>
+            </CardContent>
+          </Card>
+        </div>
 
-            {/* Right Column: Milestone Timeline */}
-            <div className="space-y-8">
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-md p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <Clock className="h-5 w-5 text-mervi-teal" />
-                  <h3 className="font-extrabold text-white text-base">Milestone Timeline</h3>
-                </div>
-                {milestones.length === 0 ? (
-                  <div className="text-center text-slate-500 py-4">No milestones defined.</div>
-                ) : (
-                  <div className="space-y-6 relative before:absolute before:inset-y-0 before:left-3 before:-translate-x-px before:w-0.5 before:bg-slate-800">
-                    {milestones.map((milestone) => (
-                      <div key={milestone.id} className="relative flex gap-4 items-start">
-                        <div className={`flex items-center justify-center w-6 h-6 rounded-full border bg-slate-950 shrink-0 z-10 ${
-                          milestone.status === 'COMPLETED' 
-                            ? 'border-emerald-500 text-emerald-400' 
-                            : milestone.status === 'IN_PROGRESS' 
-                              ? 'border-amber-500 text-amber-400' 
-                              : 'border-slate-800 text-slate-600'
-                        }`}>
-                          {milestone.status === 'COMPLETED' && <CheckCircle2 className="h-3.5 w-3.5" />}
-                          {milestone.status === 'IN_PROGRESS' && <Clock className="h-3.5 w-3.5" />}
-                          {milestone.status === 'PENDING' && <div className="h-1.5 w-1.5 rounded-full bg-slate-700" />}
-                        </div>
-                        <div className="p-4 rounded-xl border border-slate-850 bg-slate-950/40 flex-1">
-                          <h4 className="font-bold text-white text-xs mb-1">{milestone.title}</h4>
-                          <p className="text-[10px] text-slate-400 leading-relaxed mb-2">{milestone.description}</p>
-                          <div className="text-[10px] text-slate-500 flex flex-col gap-0.5">
-                            <span>Target: {new Date(milestone.targetDate).toLocaleDateString()}</span>
-                            {milestone.status === 'COMPLETED' && milestone.completedDate && (
-                              <span className="text-emerald-500 font-semibold">Completed: {new Date(milestone.completedDate).toLocaleDateString()}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+        {/* Side Column */}
+        <div className="space-y-6">
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" size="sm" className="justify-start px-3 h-10" onClick={() => router.push('/dashboard/project/timeline')}>
+                  <FolderKanban className="mr-2 h-4 w-4 text-[var(--foreground-muted)]" /> <span className="truncate">Timeline</span>
+                </Button>
+                <Button variant="outline" size="sm" className="justify-start px-3 h-10" onClick={() => router.push('/dashboard/documents')}>
+                  <FileText className="mr-2 h-4 w-4 text-[var(--foreground-muted)]" /> <span className="truncate">Documents</span>
+                </Button>
+                <Button variant="outline" size="sm" className="justify-start px-3 h-10" onClick={() => router.push('/dashboard/billing')}>
+                  <CreditCard className="mr-2 h-4 w-4 text-[var(--foreground-muted)]" /> <span className="truncate">Billing</span>
+                </Button>
+                <Button variant="outline" size="sm" className="justify-start px-3 h-10" onClick={() => router.push('/dashboard/approvals')}>
+                  <CheckSquare className="mr-2 h-4 w-4 text-[var(--foreground-muted)]" /> <span className="truncate">Approvals</span>
+                </Button>
               </div>
-            </div>
-          </div>
-        </>
-      ) : null}
+            </CardContent>
+          </Card>
+
+          {/* Project Manager */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle>Project Manager</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-3">
+                <Avatar size="lg">
+                  <AvatarImage src={activeProject.projectManager.avatar} />
+                  <AvatarFallback>{activeProject.projectManager.firstName[0]}{activeProject.projectManager.lastName[0]}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-sm font-medium text-[var(--foreground)]">{activeProject.projectManager.firstName} {activeProject.projectManager.lastName}</p>
+                  <p className="text-xs text-[var(--foreground-secondary)]">{activeProject.projectManager.role}</p>
+                </div>
+              </div>
+              <Button variant="secondary" size="sm" className="w-full mt-4 text-xs h-8">
+                Contact PM
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* Upcoming Meeting */}
+          {nextMeeting && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle>Next Meeting</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-[var(--radius-md)] bg-primary-50 dark:bg-primary-900/20 text-primary flex flex-col items-center justify-center shrink-0">
+                    <span className="text-[10px] font-medium leading-none uppercase">{new Date(nextMeeting.startTime).toLocaleDateString('en-US', { month: 'short' })}</span>
+                    <span className="text-sm font-bold leading-none mt-1">{new Date(nextMeeting.startTime).getDate()}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-[var(--foreground)] leading-tight">{nextMeeting.title}</p>
+                    <div className="flex items-center text-xs text-[var(--foreground-secondary)] mt-1 gap-1">
+                      <Clock className="h-3 w-3" />
+                      {new Date(nextMeeting.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+                {nextMeeting.meetingUrl && (
+                  <Button size="sm" className="w-full mt-4" onClick={() => window.open(nextMeeting.meetingUrl, '_blank')}>
+                    Join Meeting
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Pending Approvals Widget */}
+          {approvals.length > 0 && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle>Pending Approvals</CardTitle>
+                <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">{approvals.length}</span>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {approvals.slice(0, 3).map((approval) => (
+                    <div key={approval.id} className="flex justify-between items-center cursor-pointer group" onClick={() => router.push('/dashboard/approvals')}>
+                      <div>
+                        <p className="text-xs font-medium text-[var(--foreground)] group-hover:text-primary transition-colors truncate max-w-[180px]">{approval.title}</p>
+                        <p className="text-[10px] text-[var(--foreground-secondary)] mt-0.5">{approval.type}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-[var(--foreground-muted)] group-hover:text-primary transition-colors" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <Skeleton className="h-10 w-64" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-[104px] w-full" />)}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+        <div className="space-y-6">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      </div>
     </div>
   );
 }

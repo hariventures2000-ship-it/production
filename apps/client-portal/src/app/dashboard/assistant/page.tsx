@@ -1,166 +1,181 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { post } from "@/lib/api-client";
-import { Bot, Send, User, Sparkles, FileText } from "lucide-react";
+import { aiService } from "@/lib/services/ai.service";
+import { useAppStore } from "@/store/app.store";
+import { useAuthStore } from "@/store/auth.store";
+import { PageHeader } from "@/components/page-header";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Bot, Send, User, Sparkles, Loader2 } from "lucide-react";
+import { cn } from "@/lib/cn";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   id: string;
-  sender: "user" | "bot";
+  role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
-  sources?: string[];
+  timestamp: string;
 }
 
-export default function ClientAssistantPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      sender: "bot",
-      content: "Hello! I am your Mervi AI Assistant. How can I help you check on your active projects, deliverables, milestones, or billing details today?",
-      timestamp: new Date(),
-    }
-  ]);
+export default function AssistantPage() {
+  const selectedProjectId = useAppStore((s) => s.selectedProjectId);
+  const user = useAuthStore(s => s.user);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, loading]);
+    // Initial welcome message
+    if (messages.length === 0 && user) {
+      setMessages([
+        {
+          id: 'welcome',
+          role: 'assistant',
+          content: `Hello ${user.firstName}, I'm your Mervi AI Assistant. I have context on your current project. How can I help you today? You can ask me about project status, pending approvals, or find specific documents.`,
+          timestamp: new Date().toISOString()
+        }
+      ]);
+    }
+  }, [messages.length, user]);
 
-  const handleSend = async (e: React.FormEvent) => {
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || loading) return;
+    if (!input.trim() || !selectedProjectId) return;
 
-    const userMessageText = input.trim();
-    setInput("");
-
-    const userMsg: Message = {
-      id: Math.random().toString(),
-      sender: "user",
-      content: userMessageText,
-      timestamp: new Date(),
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: input,
+      timestamp: new Date().toISOString()
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages(prev => [...prev, userMessage]);
+    setInput("");
     setLoading(true);
 
     try {
-      const res = await post<{ answer: string, sources: string[] }>('/ai-assistant/query', { query: userMessageText });
-      
-      const botMsg: Message = {
-        id: Math.random().toString(),
-        sender: "bot",
-        content: res.answer,
-        timestamp: new Date(),
-        sources: res.sources,
-      };
-      
-      setMessages((prev) => [...prev, botMsg]);
-    } catch (err) {
-      console.error("AI assistant query failed", err);
-      
-      const errorMsg: Message = {
-        id: Math.random().toString(),
-        sender: "bot",
-        content: "Sorry, I am having trouble connecting to the services right now. Please try again in a few moments.",
-        timestamp: new Date(),
-      };
-      
-      setMessages((prev) => [...prev, errorMsg]);
+      const response = await aiService.query(input);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: response.answer,
+        timestamp: new Date().toISOString()
+      }]);
+    } catch (error) {
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: "I'm sorry, I encountered an error processing your request. Please try again.",
+        timestamp: new Date().toISOString()
+      }]);
     } finally {
       setLoading(false);
     }
   };
 
+  const suggestions = [
+    "What is the current status of the project?",
+    "Are there any invoices I need to pay?",
+    "Summarize the latest document uploaded.",
+    "What's blocking the next milestone?"
+  ];
+
   return (
-    <div className="max-w-4xl mx-auto h-[calc(100vh-12rem)] flex flex-col bg-slate-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden">
-      {/* Assistant Header */}
-      <div className="px-6 py-4 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-            <Bot className="w-6 h-6" />
-          </div>
-          <div>
-            <h3 className="font-extrabold text-white text-sm flex items-center gap-1.5">
-              Mervi AI Copilot <Sparkles className="w-3.5 h-3.5 text-mervi-cyan animate-pulse" />
-            </h3>
-            <span className="text-[10px] text-mervi-teal font-bold uppercase tracking-wider block">Agent Active</span>
-          </div>
-        </div>
+    <div className="flex flex-col h-[calc(100vh-140px)] max-w-4xl mx-auto">
+      <div className="shrink-0 mb-6">
+        <PageHeader
+          title="AI Assistant"
+          description="Ask questions about your project context, documents, and status."
+          icon={Bot}
+        />
       </div>
 
-      {/* Messages Panel */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-950/45">
-        {messages.map((msg) => (
-          <div 
-            key={msg.id} 
-            className={`flex items-start gap-3.5 ${msg.sender === "user" ? "flex-row-reverse" : ""}`}
-          >
-            <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center border text-xs font-bold ${
-              msg.sender === "user" 
-                ? "bg-slate-800 border-slate-700 text-mervi-cyan" 
-                : "bg-indigo-600/10 border-indigo-500/20 text-indigo-400"
-            }`}>
-              {msg.sender === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-            </div>
-            
-            <div className="max-w-[70%] space-y-2">
-              <div className={`p-4 rounded-2xl text-xs leading-relaxed border ${
-                msg.sender === "user" 
-                  ? "bg-indigo-600 border-indigo-550 text-white rounded-tr-none" 
-                  : "bg-slate-900 border-slate-800 text-slate-300 rounded-tl-none"
-              }`}>
-                {msg.content}
+      <Card className="flex-1 flex flex-col overflow-hidden shadow-sm border-primary/20">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+          {messages.map((msg) => (
+            <div key={msg.id} className={cn("flex gap-4 max-w-[85%]", msg.role === 'user' ? "ml-auto flex-row-reverse" : "")}>
+              <div className={cn(
+                "h-8 w-8 rounded-full flex items-center justify-center shrink-0 mt-1",
+                msg.role === 'user' ? "bg-[var(--background-tertiary)] text-[var(--foreground)]" : "bg-primary text-white"
+              )}>
+                {msg.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
               </div>
+              
+              <div className={cn(
+                "rounded-2xl px-5 py-3.5 text-sm",
+                msg.role === 'user' ? "bg-primary text-white" : "bg-[var(--background-secondary)] text-[var(--foreground)] border border-[var(--border)]"
+              )}>
+                {msg.role === 'assistant' ? (
+                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-[var(--card-bg)] prose-pre:border prose-pre:border-[var(--border)] prose-a:text-primary">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  msg.content
+                )}
+                <span className={cn(
+                  "text-[9px] block mt-2",
+                  msg.role === 'user' ? "text-primary-100" : "text-[var(--foreground-muted)]"
+                )}>
+                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="flex gap-4 max-w-[85%]">
+              <div className="h-8 w-8 rounded-full bg-primary text-white flex items-center justify-center shrink-0 mt-1">
+                <Bot className="h-4 w-4" />
+              </div>
+              <div className="bg-[var(--background-secondary)] text-[var(--foreground)] border border-[var(--border)] rounded-2xl px-5 py-4 flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span className="text-sm text-[var(--foreground-muted)]">Analyzing project data...</span>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-              {msg.sources && msg.sources.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1 pl-1">
-                  {msg.sources.map((src, i) => (
-                    <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 border border-slate-850 rounded-lg text-[9px] font-semibold text-slate-400">
-                      <FileText className="w-3 h-3 text-slate-500" />
-                      {src}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        {loading && (
-          <div className="flex items-start gap-3.5">
-            <div className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center border bg-indigo-600/10 border-indigo-500/20 text-indigo-400">
-              <Bot className="w-4 h-4" />
-            </div>
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl rounded-tl-none p-4 max-w-[70%] flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
-              <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
-              <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+        {/* Suggestions */}
+        {messages.length <= 1 && (
+          <div className="px-6 pb-4">
+            <p className="text-xs font-medium text-[var(--foreground-muted)] mb-2 flex items-center gap-1.5"><Sparkles className="h-3 w-3" /> Suggested queries</p>
+            <div className="flex flex-wrap gap-2">
+              {suggestions.map(s => (
+                <button key={s} onClick={() => setInput(s)} className="text-xs bg-[var(--background-tertiary)] hover:bg-[var(--border)] border border-[var(--border)] rounded-full px-3 py-1.5 text-[var(--foreground-secondary)] transition-colors text-left cursor-pointer">
+                  {s}
+                </button>
+              ))}
             </div>
           </div>
         )}
-        <div ref={chatEndRef} />
-      </div>
 
-      {/* Input Panel */}
-      <form onSubmit={handleSend} className="p-4 border-t border-slate-800 bg-slate-900/60 flex gap-2">
-        <input 
-          type="text" 
-          placeholder="Ask a question about your project, milestones or invoices..." 
-          className="flex-1 bg-slate-950 border border-slate-850 rounded-xl px-4 py-3.5 text-xs text-white outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 placeholder-slate-700 transition-all"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          disabled={loading}
-        />
-        <button 
-          type="submit" 
-          disabled={loading || !input.trim()}
-          className="p-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all shadow-md disabled:opacity-40 disabled:pointer-events-none active:scale-[0.97] cursor-pointer"
-        >
-          <Send className="w-4.5 h-4.5" />
-        </button>
-      </form>
+        {/* Input */}
+        <div className="p-4 bg-[var(--card-bg)] border-t border-[var(--border)]">
+          <form onSubmit={handleSubmit} className="relative flex items-center">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask anything about the project..."
+              disabled={loading}
+              className="w-full h-12 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-full pl-5 pr-12 text-sm text-[var(--foreground)] placeholder:text-[var(--foreground-muted)] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50 transition-all"
+            />
+            <Button type="submit" size="icon" disabled={!input.trim() || loading} className="absolute right-1.5 h-9 w-9 rounded-full">
+              <Send className="h-4 w-4 ml-0.5" />
+            </Button>
+          </form>
+          <div className="text-center mt-2">
+            <span className="text-[10px] text-[var(--foreground-muted)]">AI can make mistakes. Verify important project information.</span>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }

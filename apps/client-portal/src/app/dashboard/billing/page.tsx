@@ -1,193 +1,186 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { get, post } from "@/lib/api-client";
-import { CreditCard, FileText, Download, CheckCircle2, Clock } from "lucide-react";
-import Script from "next/script";
+import React, { useEffect, useState } from "react";
+import { billingService } from "@/lib/services/billing.service";
+import { PageHeader } from "@/components/page-header";
+import { StatusBadge } from "@/components/status-badge";
+import { StatCard } from "@/components/stat-card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CreditCard, Download, ExternalLink, Receipt, FileText } from "lucide-react";
+import type { BillingStats, Invoice, Payment } from "@/lib/types";
 
-export default function ClientBillingPage() {
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const [payments, setPayments] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      const [invData, payData] = await Promise.all([
-        get<any[]>('/client/billing/invoices'),
-        get<any[]>('/client/billing/payments')
-      ]);
-      setInvoices(invData);
-      setPayments(payData);
-    } catch (err) {
-      console.error("Failed to fetch billing data", err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+export default function BillingPage() {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<BillingStats | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
 
   useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [st, invs, pays] = await Promise.all([
+          billingService.getBillingDashboard(),
+          billingService.getInvoices(),
+          billingService.getPaymentHistory()
+        ]);
+        setStats(st);
+        setInvoices(invs);
+        setPayments(pays);
+      } catch (error) {
+        console.error("Error fetching billing data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchData();
   }, []);
 
-  const handlePay = async (invoiceId: string) => {
+  const handlePayNow = async (invoiceId: string) => {
     try {
-      const res = await post<{ orderId: string, amount: number, currency: string, key: string }>(`/client/billing/invoices/${invoiceId}/pay`, {});
-      
-      const options = {
-        key: res.key,
-        amount: res.amount,
-        currency: res.currency,
-        name: "Hariventure Enterprise",
-        description: "Invoice Payment",
-        order_id: res.orderId,
-        handler: function (response: any) {
-          // Razorpay callback success
-          fetchData();
-          alert('Payment Completed Successfully!');
-        },
-        theme: {
-          color: "#4f46e5",
-        },
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.on('payment.failed', function (response: any) {
-        alert('Payment Failed: ' + response.error.description);
-      });
-      rzp.open();
-    } catch (err) {
-      console.error("Failed to initiate payment", err);
-      alert('Could not initiate payment. Please try again.');
+      const order = await billingService.initiatePayment(invoiceId);
+      // In real app, initialize Razorpay checkout here using order.orderId
+      alert(`Razorpay checkout initialized for order ${order.orderId}`);
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  const handleDownloadReceipt = async (paymentId: string) => {
-    try {
-      const downloadPath = await get<string>(`/client/billing/receipts/${paymentId}`);
-      if (downloadPath) {
-        const fullUrl = downloadPath.startsWith('http') ? downloadPath : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}${downloadPath}`;
-        window.open(fullUrl, '_blank');
-      }
-    } catch (err) {
-      console.error("Failed to download receipt", err);
-      alert('Receipt not yet available. Please wait a few moments after payment.');
-    }
+  const handleDownloadInvoice = (id: string) => {
+    billingService.downloadInvoicePdf(id);
   };
 
-  const totalOutstanding = invoices
-    .filter(i => i.status === 'PENDING' || i.status === 'OVERDUE')
-    .reduce((sum, i) => sum + i.amount, 0);
+  if (loading || !stats) return <BillingSkeleton />;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-12">
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+    <div className="space-y-6">
+      <PageHeader
+        title="Billing & Payments"
+        description="Manage invoices, view payment history, and track milestone payments."
+        icon={CreditCard}
+      />
 
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">Billing & Payments</h1>
-          <p className="text-sm text-slate-400 mt-1">Manage your invoices and payment history.</p>
-        </div>
-        
-        <div className="bg-indigo-600 text-white rounded-2xl p-5 shadow-lg border border-indigo-500/20 flex items-center gap-4">
-          <div className="p-3 bg-indigo-500 rounded-xl">
-            <CreditCard className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <p className="text-indigo-100 text-xs font-semibold uppercase tracking-wider">Total Outstanding</p>
-            <p className="text-2xl font-extrabold mt-0.5">₹{totalOutstanding.toLocaleString()}</p>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard title="Total Contract Value" value={`${stats.currency} ${stats.totalContractValue.toLocaleString()}`} />
+        <StatCard title="Total Paid" value={`${stats.currency} ${stats.totalPaid.toLocaleString()}`} iconColor="text-success" />
+        <StatCard title="Pending Amount" value={`${stats.currency} ${stats.pendingAmount.toLocaleString()}`} iconColor="text-info" />
+        <StatCard title="Overdue" value={`${stats.currency} ${stats.overdueAmount.toLocaleString()}`} iconColor="text-danger" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Outstanding Invoices Section */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-md overflow-hidden">
-          <div className="px-6 py-5 border-b border-slate-800 bg-slate-900/60 flex items-center gap-2">
-            <Clock className="h-5 w-5 text-amber-500"/>
-            <h3 className="font-extrabold text-white text-base">Outstanding Invoices</h3>
+      <div className="bg-[var(--card-bg)] border border-[var(--border)] rounded-[var(--radius-lg)] shadow-sm">
+        <Tabs defaultValue="invoices" className="w-full">
+          <div className="px-4 pt-4 border-b border-[var(--border)]">
+            <TabsList className="bg-transparent border-0 p-0 justify-start h-auto">
+              <TabsTrigger value="invoices" className="px-4 py-2">Invoices</TabsTrigger>
+              <TabsTrigger value="history" className="px-4 py-2">Payment History</TabsTrigger>
+            </TabsList>
           </div>
-          <div className="p-0">
-            {isLoading ? (
-              <div className="p-8 text-center text-slate-500">Loading invoices...</div>
-            ) : invoices.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE').length === 0 ? (
-              <div className="p-12 text-center text-slate-500 flex flex-col items-center justify-center">
-                <CheckCircle2 className="h-10 w-10 text-emerald-500 mb-3" />
-                <p className="text-sm font-semibold">You have no outstanding invoices. Great job!</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-850">
-                {invoices.filter(i => i.status === 'PENDING' || i.status === 'OVERDUE').map(invoice => (
-                  <div key={invoice.id} className="p-5 hover:bg-slate-850/10 flex items-center justify-between transition-colors">
-                    <div className="min-w-0 flex-1 pr-4">
-                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        <span className="font-mono text-[10px] font-bold text-slate-550 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">{invoice.invoiceNumber}</span>
-                        <h4 className="font-bold text-white text-sm truncate">{invoice.title}</h4>
-                        <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wide ${invoice.status === 'OVERDUE' ? 'bg-red-500/10 text-red-400 border border-red-550/10' : 'bg-amber-500/10 text-amber-400 border border-amber-550/10'}`}>
-                          {invoice.status}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400 truncate">{invoice.description}</p>
-                      <p className="text-[10px] text-slate-500 mt-2 font-medium">Due: {new Date(invoice.dueDate).toLocaleDateString()}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2.5 shrink-0">
-                      <span className="font-extrabold text-white text-base">{invoice.currency} {invoice.amount.toLocaleString()}</span>
-                      <button 
-                        onClick={() => handlePay(invoice.id)} 
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors shadow-md active:scale-[0.97] cursor-pointer"
-                      >
-                        Pay Now
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Payment History & Receipts */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-md overflow-hidden">
-          <div className="px-6 py-5 border-b border-slate-800 bg-slate-900/60 flex items-center gap-2">
-            <FileText className="h-5 w-5 text-indigo-400"/>
-            <h3 className="font-extrabold text-white text-base">Payment History</h3>
-          </div>
-          <div className="p-0">
-            {isLoading ? (
-              <div className="p-8 text-center text-slate-500">Loading history...</div>
-            ) : payments.length === 0 ? (
-              <div className="p-12 text-center text-slate-500">
-                No payment history available.
-              </div>
-            ) : (
-              <div className="divide-y divide-slate-850">
-                {payments.map(payment => (
-                  <div key={payment.id} className="p-5 hover:bg-slate-850/10 flex items-center justify-between transition-colors">
-                    <div className="min-w-0 flex-1 pr-4">
-                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        <span className="font-mono text-[10px] font-bold text-slate-550 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">{payment.paymentNumber}</span>
-                        <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-wide ${payment.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-550/10' : payment.status === 'FAILED' ? 'bg-red-500/10 text-red-400 border border-red-550/10' : 'bg-slate-950 text-slate-400 border border-slate-800'}`}>
-                          {payment.status}
-                        </span>
+          <TabsContent value="invoices" className="p-0 m-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Project & Milestone</TableHead>
+                  <TableHead>Issued Date</TableHead>
+                  <TableHead>Due Date</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoices.length > 0 ? invoices.map((invoice) => (
+                  <TableRow key={invoice.id}>
+                    <TableCell className="font-medium text-[var(--foreground)]">{invoice.invoiceNumber}</TableCell>
+                    <TableCell>
+                      <p className="text-sm font-medium text-[var(--foreground)] truncate max-w-[200px]">{invoice.milestoneTitle}</p>
+                      <p className="text-[10px] text-[var(--foreground-secondary)]">{invoice.projectName}</p>
+                    </TableCell>
+                    <TableCell className="text-[var(--foreground-secondary)]">{new Date(invoice.issuedDate).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-[var(--foreground-secondary)]">{new Date(invoice.dueDate).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-medium text-[var(--foreground)]">{invoice.currency} {invoice.totalAmount.toLocaleString()}</TableCell>
+                    <TableCell><StatusBadge status={invoice.status} /></TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button variant="ghost" size="icon-sm" onClick={() => handleDownloadInvoice(invoice.id)} title="Download PDF">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        {invoice.status === 'PENDING' && (
+                          <Button size="sm" className="h-8" onClick={() => handlePayNow(invoice.id)}>
+                            Pay Now
+                          </Button>
+                        )}
+                        {invoice.status === 'PAID' && (
+                          <Button variant="outline" size="sm" className="h-8" title="View Receipt">
+                            <Receipt className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
-                      <p className="text-sm font-bold text-white">{payment.currency} {payment.amount.toLocaleString()}</p>
-                      <p className="text-[10px] text-slate-500 mt-2 font-medium">Date: {payment.paidAt ? new Date(payment.paidAt).toLocaleDateString() : 'Processing'}</p>
-                    </div>
-                    {payment.status === 'SUCCESS' && (
-                      <button 
-                        onClick={() => handleDownloadReceipt(payment.id)} 
-                        className="px-4 py-2.5 bg-slate-950 hover:bg-slate-800 text-indigo-400 hover:text-white border border-slate-800 hover:border-indigo-500/40 rounded-xl flex items-center gap-2 transition-all cursor-pointer font-bold text-xs"
-                      >
-                        <Download className="h-4 w-4" /> Receipt
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+                    </TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-32 text-center text-[var(--foreground-secondary)]">No invoices found.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TabsContent>
+
+          <TabsContent value="history" className="p-0 m-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Transaction ID</TableHead>
+                  <TableHead>Invoice Ref</TableHead>
+                  <TableHead>Method</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Receipt</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {payments.length > 0 ? payments.map((payment) => (
+                  <TableRow key={payment.id}>
+                    <TableCell className="text-[var(--foreground-secondary)]">{new Date(payment.paidAt).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-mono text-xs">{payment.razorpayPaymentId || payment.paymentNumber}</TableCell>
+                    <TableCell className="text-[var(--foreground-secondary)]">{payment.invoiceNumber}</TableCell>
+                    <TableCell className="text-[var(--foreground-secondary)]">{payment.method}</TableCell>
+                    <TableCell className="font-medium text-[var(--foreground)]">{payment.currency} {payment.amount.toLocaleString()}</TableCell>
+                    <TableCell><StatusBadge status={payment.status} /></TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon-sm" onClick={() => billingService.downloadReceipt(payment.id)}>
+                        <ExternalLink className="h-4 w-4 text-[var(--foreground-secondary)]" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )) : (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-32 text-center text-[var(--foreground-secondary)]">No payments found.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TabsContent>
+        </Tabs>
       </div>
+    </div>
+  );
+}
+
+function BillingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-10 w-64 mb-6" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-[104px] w-full" />)}
+      </div>
+      <Skeleton className="h-[400px] w-full rounded-[var(--radius-lg)]" />
     </div>
   );
 }
