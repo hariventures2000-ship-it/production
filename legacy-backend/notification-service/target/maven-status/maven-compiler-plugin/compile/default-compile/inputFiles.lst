@@ -1,7 +1,7 @@
-C:\projects\git\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\config\WebSocketConfig.java
-C:\projects\git\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\consumer\NotificationEventConsumer.java
-C:\projects\git\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\controller\NotificationController.java
-C:\projects\git\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\model\Notification.java
-C:\projects\git\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\NotificationServiceApplication.java
-C:\projects\git\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\repository\NotificationRepository.java
-C:\projects\git\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\websocket\NotificationWebSocketHandler.java
+C:\projects\git\product\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\config\WebSocketConfig.java
+C:\projects\git\product\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\consumer\NotificationEventConsumer.java
+C:\projects\git\product\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\controller\NotificationController.java
+C:\projects\git\product\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\model\Notification.java
+C:\projects\git\product\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\NotificationServiceApplication.java
+C:\projects\git\product\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\repository\NotificationRepository.java
+C:\projects\git\product\production\legacy-backend\notification-service\src\main\java\com\hariventures\mervi\notification\websocket\NotificationWebSocketHandler.java

@@ -1,6 +1,6 @@
-C:\projects\git\production\legacy-backend\analytics-service\src\main\java\com\hariventures\mervi\analytics\AnalyticsServiceApplication.java
-C:\projects\git\production\legacy-backend\analytics-service\src\main\java\com\hariventures\mervi\analytics\consumer\AnalyticsEventConsumer.java
-C:\projects\git\production\legacy-backend\analytics-service\src\main\java\com\hariventures\mervi\analytics\controller\AnalyticsController.java
-C:\projects\git\production\legacy-backend\analytics-service\src\main\java\com\hariventures\mervi\analytics\model\OrganizationAnalytics.java
-C:\projects\git\production\legacy-backend\analytics-service\src\main\java\com\hariventures\mervi\analytics\repository\OrganizationAnalyticsRepository.java
-C:\projects\git\production\legacy-backend\analytics-service\src\main\java\com\hariventures\mervi\analytics\service\AnalyticsService.java
+C:\projects\git\product\production\legacy-backend\analytics-service\src\main\java\com\hariventures\mervi\analytics\AnalyticsServiceApplication.java
+C:\projects\git\product\production\legacy-backend\analytics-service\src\main\java\com\hariventures\mervi\analytics\consumer\AnalyticsEventConsumer.java
+C:\projects\git\product\production\legacy-backend\analytics-service\src\main\java\com\hariventures\mervi\analytics\controller\AnalyticsController.java
+C:\projects\git\product\production\legacy-backend\analytics-service\src\main\java\com\hariventures\mervi\analytics\model\OrganizationAnalytics.java
+C:\projects\git\product\production\legacy-backend\analytics-service\src\main\java\com\hariventures\mervi\analytics\repository\OrganizationAnalyticsRepository.java
+C:\projects\git\product\production\legacy-backend\analytics-service\src\main\java\com\hariventures\mervi\analytics\service\AnalyticsService.java
