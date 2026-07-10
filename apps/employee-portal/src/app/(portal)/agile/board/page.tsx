@@ -13,6 +13,11 @@ import { cn } from "@/lib/cn";
 import { mockTasks, mockActiveSprint, mockEpics } from "@/lib/mock-data/agile.mock";
 import type { TaskStatus, AgileTask } from "@/lib/types/agile.types";
 import { PRIORITY_CONFIG } from "@/lib/constants";
+import { useEnterpriseFilter } from "@/hooks/use-enterprise-filter";
+import { useFilterStore } from "@/store/filter.store";
+import { EnterpriseFilterBar } from "@/components/ui/enterprise-filter-bar";
+import { FilterDropdown } from "@/components/ui/filter-dropdown";
+import { FilterFieldConfig } from "@/types/filter.types";
 
 const COLUMNS: { id: TaskStatus; title: string }[] = [
   { id: "TODO", title: "To Do" },
@@ -23,18 +28,50 @@ const COLUMNS: { id: TaskStatus; title: string }[] = [
 ];
 
 export default function SprintBoardPage() {
-  const [tasks, setTasks] = useState<AgileTask[]>(mockTasks.filter(t => t.sprintId === mockActiveSprint.id));
-  const [searchQuery, setSearchQuery] = useState("");
+  const activeSprintTasks = mockTasks.filter(t => t.sprintId === mockActiveSprint.id);
 
-  const filteredTasks = tasks.filter(t => 
-    t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    t.key.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const fieldsConfig: FilterFieldConfig[] = [
+    { key: "priority", label: "Priority", type: "select", options: [
+      { value: "all", label: "All Priorities" },
+      { value: "CRITICAL", label: "Critical" },
+      { value: "HIGH", label: "High" },
+      { value: "MEDIUM", label: "Medium" },
+      { value: "LOW", label: "Low" },
+    ]},
+    { key: "epicId", label: "Epic", type: "select", options: [
+      { value: "all", label: "All Epics" },
+      ...mockEpics.map(e => ({ value: e.id, label: e.name }))
+    ]}
+  ];
+
+  const {
+    state,
+    filteredData,
+    setSearch,
+    setFilter,
+    removeFilter,
+    clearAll,
+    setSort,
+    saveView,
+    applyView,
+  } = useEnterpriseFilter({
+    moduleId: "agile-board",
+    defaultState: {
+      search: "",
+      filters: {},
+      sort: null,
+      visibleColumns: {},
+      currentPage: 1,
+      itemsPerPage: 1000,
+    },
+    data: activeSprintTasks,
+    searchFields: ["title", "key", "description"],
+  });
 
   return (
-    <div className="h-[calc(100vh-140px)] flex flex-col max-w-full overflow-hidden">
+    <div className="h-[calc(100vh-140px)] flex flex-col max-w-full overflow-hidden space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-[var(--foreground)] tracking-tight">
@@ -49,19 +86,6 @@ export default function SprintBoardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative w-64 hidden sm:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground-muted)]" />
-            <Input 
-              placeholder="Search board..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9"
-            />
-          </div>
-          <Button variant="outline" size="sm" className="hidden sm:flex">
-            <Filter className="w-4 h-4 mr-2" />
-            Filters
-          </Button>
           <Button size="sm">
             <Plus className="w-4 h-4 mr-2" />
             Create Issue
@@ -69,10 +93,42 @@ export default function SprintBoardPage() {
         </div>
       </div>
 
+      {/* Enterprise Filter Bar */}
+      <EnterpriseFilterBar
+        moduleId="agile-board"
+        fieldsConfig={fieldsConfig}
+        state={state}
+        onSearchChange={setSearch}
+        onFilterChange={setFilter}
+        onRemoveFilter={removeFilter}
+        onClearAll={clearAll}
+        onApplyView={applyView}
+        onSaveView={saveView}
+        sortOptions={[
+          { value: "key", label: "Issue Key" },
+          { value: "title", label: "Title" },
+        ]}
+        onSortSelect={setSort}
+        filteredData={filteredData}
+      >
+        <FilterDropdown
+          label="Priority"
+          value={(state.filters.priority as any)?.value || "all"}
+          options={fieldsConfig[0].options || []}
+          onChange={(val) => setFilter("priority", { type: "select", value: val })}
+        />
+        <FilterDropdown
+          label="Epic"
+          value={(state.filters.epicId as any)?.value || "all"}
+          options={fieldsConfig[1].options || []}
+          onChange={(val) => setFilter("epicId", { type: "select", value: val })}
+        />
+      </EnterpriseFilterBar>
+
       {/* Board Columns */}
       <div className="flex-1 flex gap-4 overflow-x-auto pb-4 items-start custom-scrollbar">
         {COLUMNS.map(col => {
-          const columnTasks = filteredTasks.filter(t => t.status === col.id);
+          const columnTasks = filteredData.filter(t => t.status === col.id);
           return (
             <div key={col.id} className="flex-shrink-0 w-80 bg-[var(--background-secondary)] rounded-xl border border-[var(--border)] flex flex-col max-h-full">
               <div className="p-3 border-b border-[var(--border)] flex items-center justify-between shrink-0 bg-[var(--card-bg)] rounded-t-xl">
@@ -90,7 +146,7 @@ export default function SprintBoardPage() {
               <div className="p-3 flex-1 overflow-y-auto space-y-3 custom-scrollbar min-h-[150px]">
                 {columnTasks.map(task => {
                   const epic = mockEpics.find(e => e.id === task.epicId);
-                  const prioConf = PRIORITY_CONFIG[task.priority];
+                  const prioConf = PRIORITY_CONFIG[task.priority as keyof typeof PRIORITY_CONFIG] || PRIORITY_CONFIG.LOW;
 
                   return (
                     <div 

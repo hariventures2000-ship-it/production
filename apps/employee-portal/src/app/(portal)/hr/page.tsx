@@ -19,6 +19,13 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/cn";
+import { Pagination } from "@/components/ui/pagination";
+import { useEnterpriseFilter } from "@/hooks/use-enterprise-filter";
+import { useFilterStore } from "@/store/filter.store";
+import { EnterpriseFilterBar } from "@/components/ui/enterprise-filter-bar";
+import { FilterDropdown } from "@/components/ui/filter-dropdown";
+import { FilterFieldConfig } from "@/types/filter.types";
+import { useMemo } from "react";
 
 // ── Mock Data ────────────────────────────────────────────────────────
 
@@ -68,8 +75,79 @@ const STATUS_INDICATOR = {
 // ── Component ────────────────────────────────────────────────────────
 
 export default function HRPage() {
-  const [activeTab, setActiveTab] = useState("leaves");
+  const [activeTab, setActiveTab] = useState<"leaves" | "team" | "holidays">("leaves");
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+
+  const activeData = useMemo(() => {
+    if (activeTab === "leaves") return leaveHistory;
+    if (activeTab === "team") return teamMembers;
+    return upcomingHolidays;
+  }, [activeTab]);
+
+  const activeSearchFields = useMemo(() => {
+    if (activeTab === "leaves") return ["type", "reason", "status"];
+    if (activeTab === "team") return ["name", "role", "department", "email"];
+    return ["name", "day"];
+  }, [activeTab]);
+
+  const fieldsConfig: FilterFieldConfig[] = useMemo(() => {
+    if (activeTab === "leaves") return [
+      { key: "type", label: "Leave Type", type: "select", options: [
+        { value: "all", label: "All Types" },
+        { value: "Casual Leave", label: "Casual Leave" },
+        { value: "Sick Leave", label: "Sick Leave" },
+        { value: "Earned Leave", label: "Earned Leave" },
+        { value: "Comp Off", label: "Comp Off" },
+      ]},
+      { key: "status", label: "Status", type: "select", options: [
+        { value: "all", label: "All Statuses" },
+        { value: "APPROVED", label: "Approved" },
+        { value: "PENDING", label: "Pending" },
+        { value: "REJECTED", label: "Rejected" },
+      ]}
+    ];
+    if (activeTab === "team") return [
+      { key: "department", label: "Department", type: "select", options: [
+        { value: "all", label: "All Departments" },
+        { value: "Engineering", label: "Engineering" },
+        { value: "Design", label: "Design" },
+        { value: "Quality", label: "Quality" },
+        { value: "Product", label: "Product" },
+        { value: "Infrastructure", label: "Infrastructure" },
+      ]}
+    ];
+    return []; 
+  }, [activeTab]);
+
+  const {
+    state,
+    filteredData,
+    paginatedData,
+    totalItems,
+    setSearch,
+    setFilter,
+    removeFilter,
+    clearAll,
+    setSort,
+    saveView,
+    applyView,
+  } = useEnterpriseFilter({
+    moduleId: `hr-${activeTab}`,
+    defaultState: {
+      search: "",
+      filters: {},
+      sort: null,
+      visibleColumns: {},
+      currentPage: 1,
+      itemsPerPage: 8,
+    },
+    data: activeData as any[],
+    searchFields: activeSearchFields,
+  });
+
+  const handlePageChange = (page: number) => {
+    useFilterStore.getState().updateState(`hr-${activeTab}`, { currentPage: page });
+  };
 
   return (
     <div className="space-y-6 max-w-[1400px]">
@@ -155,7 +233,7 @@ export default function HRPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "leaves" | "team" | "holidays")}>
         <TabsList>
           <TabsTrigger value="leaves">Leave History</TabsTrigger>
           <TabsTrigger value="team">Team Directory</TabsTrigger>
@@ -163,12 +241,54 @@ export default function HRPage() {
         </TabsList>
       </Tabs>
 
+      <EnterpriseFilterBar
+        moduleId={`hr-${activeTab}`}
+        fieldsConfig={fieldsConfig}
+        state={state}
+        onSearchChange={setSearch}
+        onFilterChange={setFilter}
+        onRemoveFilter={removeFilter}
+        onClearAll={clearAll}
+        onApplyView={applyView}
+        onSaveView={saveView}
+        sortOptions={activeTab === "leaves" ? [
+          { value: "from", label: "Date" },
+          { value: "status", label: "Status" },
+        ] : activeTab === "team" ? [
+          { value: "name", label: "Name" },
+          { value: "department", label: "Department" },
+        ] : [
+          { value: "date", label: "Date" },
+        ]}
+        onSortSelect={setSort}
+        filteredData={filteredData}
+      >
+        {activeTab === "leaves" && fieldsConfig.map((field) => (
+          <FilterDropdown
+            key={field.key}
+            label={field.label}
+            value={(state.filters[field.key] as any)?.value || "all"}
+            options={field.options || []}
+            onChange={(val) => setFilter(field.key, { type: "select", value: val })}
+          />
+        ))}
+        {activeTab === "team" && fieldsConfig.map((field) => (
+          <FilterDropdown
+            key={field.key}
+            label={field.label}
+            value={(state.filters[field.key] as any)?.value || "all"}
+            options={field.options || []}
+            onChange={(val) => setFilter(field.key, { type: "select", value: val })}
+          />
+        ))}
+      </EnterpriseFilterBar>
+
       {/* Leave History Tab */}
       {activeTab === "leaves" && (
         <Card>
           <CardContent className="p-0">
             <div className="divide-y divide-[var(--border)]">
-              {leaveHistory.map((leave) => {
+              {paginatedData.map((leave: any) => {
                 const statusConf = STATUS_STYLES[leave.status as keyof typeof STATUS_STYLES];
                 const StatusIcon = statusConf.icon;
                 return (
@@ -205,47 +325,73 @@ export default function HRPage() {
                   </div>
                 );
               })}
+              {paginatedData.length === 0 && (
+                <div className="p-8 text-center text-[var(--foreground-secondary)] text-sm">
+                  No leaves found matching the criteria.
+                </div>
+              )}
             </div>
+            <Pagination
+              currentPage={state.currentPage}
+              totalItems={totalItems}
+              itemsPerPage={state.itemsPerPage}
+              onPageChange={handlePageChange}
+              itemName="leaves"
+            />
           </CardContent>
         </Card>
       )}
 
       {/* Team Directory Tab */}
       {activeTab === "team" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {teamMembers.map((member) => (
-            <Card key={member.id} className="hover:border-[var(--color-primary)] transition-colors group">
-              <CardContent className="p-5">
-                <div className="flex items-start gap-4">
-                  <div className="relative">
-                    <Avatar className="w-12 h-12">
-                      <AvatarFallback className="bg-[var(--color-primary)] text-white text-sm font-semibold">
-                        {member.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className={cn(
-                      "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[var(--card-bg)]",
-                      STATUS_INDICATOR[member.status as keyof typeof STATUS_INDICATOR]
-                    )} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-[var(--foreground)] group-hover:text-[var(--color-primary)] transition-colors">
-                      {member.name}
-                    </h3>
-                    <p className="text-xs text-[var(--foreground-secondary)]">{member.role}</p>
-                    <div className="flex items-center gap-1 mt-2 text-xs text-[var(--foreground-muted)]">
-                      <Building2 className="w-3 h-3" />
-                      {member.department}
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {paginatedData.map((member: any) => (
+              <Card key={member.id} className="hover:border-[var(--color-primary)] transition-colors group">
+                <CardContent className="p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="relative">
+                      <Avatar className="w-12 h-12">
+                        <AvatarFallback className="bg-[var(--color-primary)] text-white text-sm font-semibold">
+                          {member.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className={cn(
+                        "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[var(--card-bg)]",
+                        STATUS_INDICATOR[member.status as keyof typeof STATUS_INDICATOR]
+                      )} />
                     </div>
-                    <div className="flex items-center gap-1 mt-1 text-xs text-[var(--foreground-muted)]">
-                      <Mail className="w-3 h-3" />
-                      <span className="truncate">{member.email}</span>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-[var(--foreground)] group-hover:text-[var(--color-primary)] transition-colors">
+                        {member.name}
+                      </h3>
+                      <p className="text-xs text-[var(--foreground-secondary)]">{member.role}</p>
+                      <div className="flex items-center gap-1 mt-2 text-xs text-[var(--foreground-muted)]">
+                        <Building2 className="w-3 h-3" />
+                        {member.department}
+                      </div>
+                      <div className="flex items-center gap-1 mt-1 text-xs text-[var(--foreground-muted)]">
+                        <Mail className="w-3 h-3" />
+                        <span className="truncate">{member.email}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))}
+            {paginatedData.length === 0 && (
+              <div className="col-span-full p-8 text-center border border-dashed border-[var(--border)] rounded-xl text-[var(--foreground-secondary)] text-sm">
+                No team members found matching the criteria.
+              </div>
+            )}
+          </div>
+          <Pagination
+            currentPage={state.currentPage}
+            totalItems={totalItems}
+            itemsPerPage={state.itemsPerPage}
+            onPageChange={handlePageChange}
+            itemName="team members"
+          />
         </div>
       )}
 
@@ -258,7 +404,7 @@ export default function HRPage() {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-[var(--border)]">
-              {upcomingHolidays.map((holiday, i) => (
+              {paginatedData.map((holiday: any, i: number) => (
                 <div key={i} className="flex items-center gap-4 p-4 hover:bg-[var(--background-secondary)] transition-colors">
                   <div className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-[var(--color-primary)]/10 border border-[var(--color-primary)]/20">
                     <span className="text-lg font-bold text-[var(--color-primary)] leading-none">
@@ -277,7 +423,19 @@ export default function HRPage() {
                   <Badge variant="secondary" className="text-[10px]">Holiday</Badge>
                 </div>
               ))}
+              {paginatedData.length === 0 && (
+                <div className="p-8 text-center text-[var(--foreground-secondary)] text-sm">
+                  No holidays found matching the criteria.
+                </div>
+              )}
             </div>
+            <Pagination
+              currentPage={state.currentPage}
+              totalItems={totalItems}
+              itemsPerPage={state.itemsPerPage}
+              onPageChange={handlePageChange}
+              itemName="holidays"
+            />
           </CardContent>
         </Card>
       )}

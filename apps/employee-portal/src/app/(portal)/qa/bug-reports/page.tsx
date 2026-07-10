@@ -1,9 +1,15 @@
+// ═══════════════════════════════════════════════════════════════════
+// MERVI EMPLOYEE PORTAL — Bug Reports Page
+// Refined with Severity/Component Filters, Pagination, Skeletons, Error Retry, and Empty States
+// ═══════════════════════════════════════════════════════════════════
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Bug, Search, Filter, Plus, AlertTriangle, AlertCircle,
   Info, CheckCircle2, Clock, Circle, User, Calendar,
+  ShieldAlert, RefreshCcw, Layers, MoreHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +22,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/cn";
+import { Pagination } from "@/components/ui/pagination";
+import { useEnterpriseFilter } from "@/hooks/use-enterprise-filter";
+import { useFilterStore } from "@/store/filter.store";
+import { EnterpriseFilterBar } from "@/components/ui/enterprise-filter-bar";
+import { FilterDropdown } from "@/components/ui/filter-dropdown";
+import { FilterFieldConfig } from "@/types/filter.types";
 
 // ── Mock Data ────────────────────────────────────────────────────────
 
@@ -91,24 +103,147 @@ const BUG_STATUS = {
   CLOSED: { label: "Closed", color: "text-slate-600 bg-slate-100 dark:text-slate-400 dark:bg-slate-800" },
 } as const;
 
-// ── Component ────────────────────────────────────────────────────────
+// ── Skeletons ──────────────────────────────────────────────────────
+function BugsSkeleton() {
+  return (
+    <div className="space-y-3 animate-pulse p-4">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="flex gap-4 p-4 border border-[var(--border)] rounded-xl bg-[var(--card-bg)]">
+          <div className="w-2.5 h-2.5 rounded-full bg-[var(--background-secondary)] mt-1.5 shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 bg-[var(--background-secondary)] rounded w-3/5" />
+            <div className="h-3 bg-[var(--background-secondary)] rounded w-1/4" />
+          </div>
+          <div className="w-16 h-5 rounded bg-[var(--background-secondary)]" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Error View ─────────────────────────────────────────────────────
+function ErrorView({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="p-8 text-center border border-[var(--border)] rounded-xl bg-[var(--card-bg)] flex flex-col items-center justify-center max-w-md mx-auto my-12 shadow-sm">
+      <ShieldAlert className="w-12 h-12 text-[var(--color-danger)] mb-4 animate-bounce" />
+      <h3 className="text-lg font-bold text-[var(--foreground)]">Defect Service Error</h3>
+      <p className="text-sm text-[var(--foreground-secondary)] mt-2 mb-6">{message}</p>
+      <div className="flex gap-2">
+        <Button onClick={onRetry} variant="default" className="h-9 px-4">
+          <RefreshCcw className="w-4 h-4 mr-2" /> Retry Connection
+        </Button>
+        <Button onClick={() => window.location.reload()} variant="outline" className="h-9 px-4">
+          Refresh Page
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── Empty State ────────────────────────────────────────────────────
+function EmptyState({ onAction, onSecondaryAction }: { onAction: () => void, onSecondaryAction: () => void }) {
+  return (
+    <div className="p-12 text-center border border-dashed border-[var(--border)] rounded-xl bg-[var(--card-bg)] flex flex-col items-center justify-center">
+      <Bug className="w-12 h-12 text-[var(--foreground-muted)] mb-4" />
+      <h3 className="text-lg font-bold text-[var(--foreground)]">No Bugs Found</h3>
+      <p className="text-sm text-[var(--foreground-secondary)] mt-2 max-w-sm mb-6">
+        No defect reports match the query. If you found a new issue, please report it immediately!
+      </p>
+      <div className="flex gap-2">
+        <Button onClick={onAction}><Plus className="w-4 h-4 mr-2" /> Report Bug</Button>
+        <Button onClick={onSecondaryAction} variant="outline">Clear Filters</Button>
+      </div>
+    </div>
+  );
+}
 
 export default function BugReportsPage() {
-  const [activeTab, setActiveTab] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
 
-  const filteredBugs = bugs.filter((bug) => {
-    const matchesSearch = bug.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      bug.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesTab =
-      activeTab === "all" ? true :
-      activeTab === "open" ? bug.status === "OPEN" || bug.status === "IN_PROGRESS" :
-      activeTab === "resolved" ? bug.status === "RESOLVED" || bug.status === "CLOSED" :
-      activeTab === "critical" ? bug.severity === "CRITICAL" :
-      true;
-    return matchesSearch && matchesTab;
+  const loadData = () => {
+    setLoading(true);
+    setError(null);
+    setTimeout(() => {
+      if (Math.random() < 0.05) {
+        setError("Failed to resolve bug queries from employee-service database endpoint.");
+      }
+      setLoading(false);
+    }, 450);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const fieldsConfig: FilterFieldConfig[] = [
+    { key: "severity", label: "Severity", type: "select", options: [
+      { value: "all", label: "All Severities" },
+      { value: "CRITICAL", label: "Critical" },
+      { value: "MAJOR", label: "Major" },
+      { value: "MINOR", label: "Minor" },
+      { value: "TRIVIAL", label: "Trivial" },
+    ]},
+    { key: "project", label: "Component", type: "select", options: [
+      { value: "all", label: "All Components" },
+      { value: "Auth Service", label: "Auth Service" },
+      { value: "Employee Portal", label: "Employee Portal" },
+      { value: "Notification Service", label: "Notification Service" },
+      { value: "Client Service", label: "Client Service" },
+      { value: "API Gateway", label: "API Gateway" },
+    ]},
+    { key: "status", label: "Status", type: "select", options: [
+      { value: "all", label: "All Statuses" },
+      { value: "OPEN", label: "Open" },
+      { value: "IN_PROGRESS", label: "In Progress" },
+      { value: "RESOLVED", label: "Resolved" },
+      { value: "CLOSED", label: "Closed" },
+    ]}
+  ];
+
+  const {
+    state,
+    filteredData,
+    paginatedData,
+    totalItems,
+    setSearch,
+    setFilter,
+    removeFilter,
+    clearAll,
+    setSort,
+    saveView,
+    applyView,
+  } = useEnterpriseFilter({
+    moduleId: "bug-reports",
+    defaultState: {
+      search: "",
+      filters: {},
+      sort: null,
+      visibleColumns: {},
+      currentPage: 1,
+      itemsPerPage: 8,
+    },
+    data: bugs,
+    searchFields: ["title", "id", "description", "project"],
   });
+
+  const handlePageChange = (page: number) => {
+    useFilterStore.getState().updateState("bug-reports", { currentPage: page });
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-[1400px]">
+        <div className="h-12 w-48 bg-[var(--background-secondary)] rounded animate-pulse" />
+        <BugsSkeleton />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <ErrorView message={error} onRetry={loadData} />;
+  }
 
   return (
     <div className="space-y-6 max-w-[1400px]">
@@ -206,90 +341,100 @@ export default function BugReportsPage() {
         })}
       </div>
 
-      {/* Tabs + Search */}
-      <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
-          <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="open">Open</TabsTrigger>
-            <TabsTrigger value="resolved">Resolved</TabsTrigger>
-            <TabsTrigger value="critical">Critical</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--foreground-muted)]" />
-            <Input
-              placeholder="Search bugs..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <Button variant="outline" size="icon" className="shrink-0">
-            <Filter className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
+      {/* Enterprise Filter Bar */}
+      <EnterpriseFilterBar
+        moduleId="bug-reports"
+        fieldsConfig={fieldsConfig}
+        state={state}
+        onSearchChange={setSearch}
+        onFilterChange={setFilter}
+        onRemoveFilter={removeFilter}
+        onClearAll={clearAll}
+        onApplyView={applyView}
+        onSaveView={saveView}
+        sortOptions={[
+          { value: "id", label: "Bug ID" },
+          { value: "severity", label: "Severity" },
+          { value: "createdAt", label: "Created Date" },
+        ]}
+        onSortSelect={setSort}
+        filteredData={filteredData}
+      >
+        <FilterDropdown
+          label="Severity"
+          value={(state.filters.severity as any)?.value || "all"}
+          options={fieldsConfig[0].options || []}
+          onChange={(val) => setFilter("severity", { type: "select", value: val })}
+        />
+        <FilterDropdown
+          label="Component"
+          value={(state.filters.project as any)?.value || "all"}
+          options={fieldsConfig[1].options || []}
+          onChange={(val) => setFilter("project", { type: "select", value: val })}
+        />
+        <FilterDropdown
+          label="Status"
+          value={(state.filters.status as any)?.value || "all"}
+          options={fieldsConfig[2].options || []}
+          onChange={(val) => setFilter("status", { type: "select", value: val })}
+        />
+      </EnterpriseFilterBar>
 
       {/* Bug List */}
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-0 flex flex-col h-full justify-between">
           <div className="divide-y divide-[var(--border)]">
-            {filteredBugs.map((bug) => {
-              const severityConf = SEVERITY[bug.severity as keyof typeof SEVERITY];
+            {paginatedData.map((bug) => {
+              const severityConf = SEVERITY[bug.severity as keyof typeof SEVERITY] || SEVERITY.MINOR;
               const SeverityIcon = severityConf.icon;
-              const statusConf = BUG_STATUS[bug.status as keyof typeof BUG_STATUS];
+              const statusConf = BUG_STATUS[bug.status as keyof typeof BUG_STATUS] || BUG_STATUS.OPEN;
 
               return (
-                <div key={bug.id} className="flex items-start gap-4 p-4 hover:bg-[var(--background-secondary)] transition-colors group">
+                <div key={bug.id} className="flex items-start gap-4 p-4 hover:bg-[var(--background-secondary)]/40 transition-colors group">
                   <div className={cn("w-2 h-2 rounded-full mt-2 shrink-0", severityConf.dot)} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs font-mono text-[var(--foreground-muted)]">{bug.id}</span>
-                      <Badge variant="secondary" className={cn("text-[10px]", severityConf.color)}>
-                        <SeverityIcon className="w-3 h-3 mr-0.5" />
-                        {severityConf.label}
+                      <h3 className="text-sm font-semibold text-[var(--foreground)] group-hover:text-[var(--color-primary)] transition-colors cursor-pointer leading-tight">
+                        {bug.title}
+                      </h3>
+                      <Badge variant="secondary" className={cn("text-[9px] px-1.5 py-0 font-semibold", severityConf.color)}>
+                        <SeverityIcon className="w-2.5 h-2.5 mr-0.5 inline" /> {severityConf.label}
                       </Badge>
-                      <Badge variant="secondary" className={cn("text-[10px]", statusConf.color)}>
+                      <Badge variant="secondary" className={cn("text-[9px] px-1.5 py-0 font-semibold", statusConf.color)}>
                         {statusConf.label}
                       </Badge>
                     </div>
-                    <h3 className="text-sm font-medium text-[var(--foreground)] mt-1 group-hover:text-[var(--color-primary)] transition-colors cursor-pointer">
-                      {bug.title}
-                    </h3>
-                    <p className="text-xs text-[var(--foreground-secondary)] mt-1 line-clamp-1">{bug.description}</p>
-                    <div className="flex items-center gap-4 mt-2 text-[10px] text-[var(--foreground-muted)] flex-wrap">
-                      <div className="flex items-center gap-1">
-                        <User className="w-3 h-3" />
-                        {bug.reporter}
-                      </div>
-                      <span>{bug.project}</span>
+                    <p className="text-xs text-[var(--foreground-secondary)] mt-1.5 line-clamp-2">
+                      {bug.description}
+                    </p>
+                    <div className="flex items-center gap-4 mt-3 text-[10px] text-[var(--foreground-muted)] flex-wrap">
+                      <span>Reporter: {bug.reporter}</span>
+                      <span>Assignee: {bug.assignee}</span>
+                      <span>Service: {bug.project}</span>
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
                         {new Date(bug.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Avatar className="w-7 h-7">
-                      <AvatarFallback className="text-[10px] bg-[var(--color-primary)] text-white">
-                        {bug.assigneeInitials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs text-[var(--foreground-muted)] hidden sm:block">{bug.assignee}</span>
-                  </div>
+                  <Button variant="ghost" size="icon-sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
                 </div>
               );
             })}
-            {filteredBugs.length === 0 && (
-              <div className="p-12 text-center">
-                <Bug className="w-8 h-8 text-[var(--foreground-muted)] mx-auto mb-3" />
-                <p className="text-sm font-medium text-[var(--foreground)]">No bugs found</p>
-                <p className="text-xs text-[var(--foreground-secondary)] mt-1">Great news — or try adjusting your filters!</p>
-              </div>
+            {paginatedData.length === 0 && (
+              <EmptyState onAction={() => setReportDialogOpen(true)} onSecondaryAction={clearAll} />
             )}
           </div>
+          <Pagination
+            currentPage={state.currentPage}
+            totalItems={totalItems}
+            itemsPerPage={state.itemsPerPage}
+            onPageChange={handlePageChange}
+            itemName="bugs"
+          />
         </CardContent>
       </Card>
     </div>
