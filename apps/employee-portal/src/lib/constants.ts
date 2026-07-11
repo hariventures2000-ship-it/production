@@ -74,6 +74,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { name: 'My Work', href: '/workspace/my-work', icon: Briefcase },
       { name: 'Calendar', href: '/workspace/calendar', icon: CalendarDays },
       { name: 'Meetings', href: '/workspace/meetings', icon: Video },
+      { name: 'Messages', href: '/communication', icon: MessageSquare },
     ],
   },
   {
@@ -131,12 +132,6 @@ export const NAV_SECTIONS: NavSection[] = [
     roles: ['DEVOPS_ENGINEER', 'TEAM_LEAD', 'PROJECT_MANAGER', 'CEO', 'SUPER_ADMIN'],
   },
   {
-    label: 'Communication',
-    items: [
-      { name: 'Messages', href: '/communication', icon: MessageSquare },
-    ],
-  },
-  {
     label: 'Reports',
     items: [
       { name: 'Analytics', href: '/reports', icon: BarChart3 },
@@ -152,12 +147,6 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'HR',
     items: [
       { name: 'HR Self-Service', href: '/hr', icon: Users },
-    ],
-  },
-  {
-    label: 'AI',
-    items: [
-      { name: 'AI Workspace', href: '/ai', icon: Sparkles },
     ],
   },
   {

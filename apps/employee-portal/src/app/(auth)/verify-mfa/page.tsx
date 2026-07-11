@@ -14,7 +14,12 @@ const CODE_LENGTH = 6;
 
 export default function VerifyMfaPage() {
   const router = useRouter();
-  const { tempToken, setAuth, setAccessToken, isHydrated, isAuthenticated } = useAuthStore();
+  
+  const tempToken = useAuthStore((state) => state.tempToken);
+  const setAuth = useAuthStore((state) => state.setAuth);
+  const setAccessToken = useAuthStore((state) => state.setAccessToken);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const [code, setCode] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [isLoading, setIsLoading] = useState(false);
@@ -66,7 +71,7 @@ export default function VerifyMfaPage() {
     [code]
   );
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e?: React.FormEvent) => {
     e?.preventDefault();
     const fullCode = code.join("");
     if (fullCode.length !== CODE_LENGTH) {
@@ -109,16 +114,18 @@ export default function VerifyMfaPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [code, tempToken, setAccessToken, setAuth, router]);
 
   // Auto-submit when code is complete
   useEffect(() => {
     const fullCode = code.join("");
     if (fullCode.length === CODE_LENGTH && !isLoading) {
-      handleSubmit();
+      const timer = setTimeout(() => {
+        handleSubmit();
+      }, 0);
+      return () => clearTimeout(timer);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code]);
+  }, [code, isLoading, handleSubmit]);
 
   return (
     <motion.div

@@ -11,6 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/cn";
+import { useEnterpriseFilter } from "@/hooks/use-enterprise-filter";
+import { EnterpriseFilterBar } from "@/components/ui/enterprise-filter-bar";
+import { FilterDropdown } from "@/components/ui/filter-dropdown";
+import { FilterFieldConfig } from "@/types/filter.types";
+import { Pagination } from "@/components/ui/pagination";
+import { useFilterStore } from "@/store/filter.store";
+import { useMemo } from "react";
 
 // ── Mock Data ────────────────────────────────────────────────────────
 
@@ -129,6 +136,44 @@ export default function AgilePlanningPage() {
     });
   };
 
+  const fieldsConfig: FilterFieldConfig[] = useMemo(() => [
+    { key: "status", label: "Status", type: "select", options: [
+      { value: "all", label: "All Statuses" },
+      { value: "PLANNING", label: "Planning" },
+      { value: "IN_PROGRESS", label: "In Progress" },
+      { value: "COMPLETED", label: "Completed" },
+    ]},
+    { key: "owner", label: "Owner", type: "select", options: [
+      { value: "all", label: "All Owners" },
+      { value: "Vijay S.", label: "Vijay S." },
+      { value: "Priya K.", label: "Priya K." },
+      { value: "Arjun M.", label: "Arjun M." },
+    ]}
+  ], []);
+
+  const {
+    state,
+    filteredData,
+    paginatedData,
+    totalItems,
+    setSearch,
+    setFilter,
+    removeFilter,
+    clearAll,
+    setSort,
+    saveView,
+    applyView
+  } = useEnterpriseFilter({
+    moduleId: "agile-planning-epics",
+    defaultState: { search: "", filters: {}, sort: null, visibleColumns: {}, currentPage: 1, itemsPerPage: 5 },
+    data: epics,
+    searchFields: ["key", "name", "description", "owner"],
+  });
+
+  const handlePageChange = (page: number) => {
+    useFilterStore.getState().updateState("agile-planning-epics", { currentPage: page });
+  };
+
   return (
     <div className="space-y-6 max-w-[1400px]">
       {/* Header */}
@@ -153,7 +198,36 @@ export default function AgilePlanningPage() {
             Epic Roadmap
           </h2>
 
-          {epics.map((epic) => {
+          <EnterpriseFilterBar
+            moduleId="agile-planning-epics"
+            fieldsConfig={fieldsConfig}
+            state={state}
+            onSearchChange={setSearch}
+            onFilterChange={setFilter}
+            onRemoveFilter={removeFilter}
+            onClearAll={clearAll}
+            onApplyView={applyView}
+            onSaveView={saveView}
+            sortOptions={[
+              { value: "progress", label: "Progress" },
+              { value: "startDate", label: "Start Date" },
+              { value: "endDate", label: "End Date" },
+            ]}
+            onSortSelect={setSort}
+            filteredData={filteredData}
+          >
+            {fieldsConfig.map((field) => (
+              <FilterDropdown
+                key={field.key}
+                label={field.label}
+                value={(state.filters[field.key] as any)?.value || "all"}
+                options={field.options || []}
+                onChange={(val) => setFilter(field.key, { type: "select", value: val })}
+              />
+            ))}
+          </EnterpriseFilterBar>
+
+          {paginatedData.map((epic: any) => {
             const expanded = expandedEpics.has(epic.id);
             const statusConf = EPIC_STATUS[epic.status as keyof typeof EPIC_STATUS];
 
@@ -240,6 +314,20 @@ export default function AgilePlanningPage() {
               </Card>
             );
           })}
+          
+          {paginatedData.length === 0 && (
+            <div className="p-8 text-center border border-dashed border-[var(--border)] rounded-xl text-[var(--foreground-secondary)] text-sm">
+              No epics found matching the criteria.
+            </div>
+          )}
+
+          <Pagination
+            currentPage={state.currentPage}
+            totalItems={totalItems}
+            itemsPerPage={state.itemsPerPage}
+            onPageChange={handlePageChange}
+            itemName="epics"
+          />
         </div>
 
         {/* Right: Sprint Planning + Unplanned */}

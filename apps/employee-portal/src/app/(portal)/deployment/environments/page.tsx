@@ -65,17 +65,20 @@ const ENV_COLORS = {
   production: "border-emerald-500/30",
 } as const;
 
+// ── Helper Utilities ──────────────────────────────────────────────────
+
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours < 1) return "just now";
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 // ── Component ────────────────────────────────────────────────────────
 
 export default function EnvironmentsPage() {
-  function timeAgo(dateStr: string) {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours < 1) return "just now";
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-  }
 
   return (
     <div className="space-y-6 max-w-[1400px]">
