@@ -1,16 +1,16 @@
 // ═══════════════════════════════════════════════════════════════════
 // MERVI EMPLOYEE PORTAL — Projects Page
-// Refined with Health/Lead Filters, Pagination, Loading Skeletons, Error Retry, and Empty States
+// Refined with Health Details Drawer (Timeline, Members, Risks, Releases, Dependencies)
 // ═══════════════════════════════════════════════════════════════════
 
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
+import { useState, useEffect, useMemo } from "react";
 import { 
   FolderKanban, Plus, Search, Filter, MoreHorizontal, 
   Users, CheckCircle2, AlertTriangle, XCircle, Clock,
-  AlertCircle, RefreshCcw, Activity, ShieldAlert
+  AlertCircle, RefreshCcw, Activity, ShieldAlert, ChevronRight, X,
+  Calendar, Shield, Cpu, Tag, GitPullRequest, Info, CalendarDays
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,8 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, 
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/cn";
 import { mockProjects } from "@/lib/mock-data/projects.mock";
 import { Pagination } from "@/components/ui/pagination";
@@ -33,6 +32,7 @@ import { useFilterStore } from "@/store/filter.store";
 import { EnterpriseFilterBar } from "@/components/ui/enterprise-filter-bar";
 import { FilterDropdown } from "@/components/ui/filter-dropdown";
 import { FilterFieldConfig } from "@/types/filter.types";
+import { toast } from "sonner";
 
 const statusConfig: Record<ProjectStatus, { label: string; icon: any; color: string }> = {
   ACTIVE: { label: "Active", icon: Clock, color: "text-blue-500 bg-blue-500/10" },
@@ -43,8 +43,8 @@ const statusConfig: Record<ProjectStatus, { label: string; icon: any; color: str
 };
 
 const healthConfig: Record<ProjectHealth, { label: string; color: string; bg: string }> = {
-  ON_TRACK: { label: "On Track", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500" },
-  AT_RISK: { label: "At Risk", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500" },
+  ON_TRACK: { label: "On Track", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-505" },
+  AT_RISK: { label: "At Risk", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-550" },
   BEHIND: { label: "Behind", color: "text-red-600 dark:text-red-400", bg: "bg-red-500" },
 };
 
@@ -106,14 +106,12 @@ function EmptyState({ onAction, onSecondaryAction }: { onAction: () => void, onS
 export default function ProjectsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const loadData = () => {
     setLoading(true);
     setError(null);
     setTimeout(() => {
-      if (Math.random() < 0.05) {
-        setError("Failed to fetch project matrices from tenant-service cache cluster.");
-      }
       setLoading(false);
     }, 400);
   };
@@ -171,6 +169,10 @@ export default function ProjectsPage() {
     searchFields: ["name", "key"],
   });
 
+  const selectedProject = useMemo(() => {
+    return mockProjects.find(p => p.id === selectedProjectId) || null;
+  }, [selectedProjectId]);
+
   const handlePageChange = (page: number) => {
     useFilterStore.getState().updateState("projects", { currentPage: page });
   };
@@ -198,7 +200,7 @@ export default function ProjectsPage() {
             Manage and track all organizational projects and initiatives.
           </p>
         </div>
-        <Button onClick={() => alert("New project configuration is handled in Ceo/Super Admin console.")}>
+        <Button onClick={() => toast.info("New project allocation requires Super Admin console authorization.")}>
           <Plus className="w-4 h-4 mr-2" />
           New Project
         </Button>
@@ -245,7 +247,7 @@ export default function ProjectsPage() {
 
       {/* Projects Grid */}
       {paginatedData.length === 0 ? (
-        <EmptyState onAction={() => alert("New Project...")} onSecondaryAction={clearAll} />
+        <EmptyState onAction={() => {}} onSecondaryAction={clearAll} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {paginatedData.map((project) => {
@@ -255,7 +257,8 @@ export default function ProjectsPage() {
             return (
               <div 
                 key={project.id}
-                className="group flex flex-col bg-[var(--card-bg)] rounded-xl border border-[var(--border)] shadow-xs hover:shadow-md hover:border-[var(--border-hover)] transition-all overflow-hidden"
+                onClick={() => setSelectedProjectId(project.id)}
+                className="group flex flex-col bg-[var(--card-bg)] rounded-xl border border-[var(--border)] shadow-xs hover:shadow-md hover:border-[var(--color-primary)] transition-all overflow-hidden cursor-pointer"
               >
                 {/* Card Header */}
                 <div className="p-5 border-b border-[var(--border)] flex-1">
@@ -270,26 +273,18 @@ export default function ProjectsPage() {
                           {statusConfig[project.status].label}
                         </div>
                       </div>
-                      <Link href={`/projects/${project.id}`} className="block group-hover:text-[var(--color-primary)] transition-colors">
-                        <h3 className="text-lg font-bold text-[var(--foreground)] truncate">
-                          {project.name}
-                        </h3>
-                      </Link>
+                      <h3 className="text-base font-bold text-[var(--foreground)] truncate group-hover:text-[var(--color-primary)] transition-colors">
+                        {project.name}
+                      </h3>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon-sm" className="shrink-0 -mr-2">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>View Details</DropdownMenuItem>
-                        <DropdownMenuItem>Edit Project</DropdownMenuItem>
-                        <DropdownMenuItem>Manage Team</DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-500">Archive Project</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button 
+                      variant="ghost" 
+                      size="icon-sm" 
+                      className="shrink-0 -mr-2 -mt-2"
+                      onClick={(e) => { e.stopPropagation(); toast.info(`Options triggered for ${project.key}`); }}
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
                   </div>
                   <p className="text-xs text-[var(--foreground-secondary)] mt-2 line-clamp-2 leading-relaxed">
                     {project.description}
@@ -367,6 +362,187 @@ export default function ProjectsPage() {
           />
         </div>
       )}
+
+      {/* Project Details Drawer (Sheet) */}
+      <Sheet open={selectedProjectId !== null} onOpenChange={(open) => { if (!open) setSelectedProjectId(null); }}>
+        <SheetContent className="sm:max-w-[620px] p-0 flex flex-col h-full bg-[var(--card-bg)] border-l border-[var(--border)] shadow-2xl">
+          {selectedProject && (
+            <>
+              {/* Drawer Header */}
+              <div className="p-6 border-b border-[var(--border)] bg-[var(--background-secondary)]/50 flex items-start justify-between shrink-0">
+                <div className="space-y-1.5 pr-8">
+                  <div className="flex items-center gap-2">
+                    <Badge className={cn("text-[9px] border-none font-semibold uppercase", statusConfig[selectedProject.status].color)}>
+                      {selectedProject.status}
+                    </Badge>
+                    <Badge variant="outline" className={cn("text-[9px] font-semibold bg-blue-50 border-none text-blue-700")}>
+                      {selectedProject.key}
+                    </Badge>
+                  </div>
+                  <SheetTitle className="text-xl font-bold text-[var(--foreground)] mt-2">
+                    {selectedProject.name}
+                  </SheetTitle>
+                  <SheetDescription className="text-xs text-[var(--foreground-secondary)] leading-relaxed mt-1">
+                    {selectedProject.description}
+                  </SheetDescription>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon-sm" 
+                  onClick={() => setSelectedProjectId(null)}
+                  className="rounded-full text-[var(--foreground-muted)] hover:text-[var(--foreground)] shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Drawer Details (Tabs) */}
+              <Tabs defaultValue="health" className="flex-1 flex flex-col min-h-0">
+                <div className="px-6 border-b border-[var(--border)] bg-[var(--background-secondary)]/30 shrink-0">
+                  <TabsList className="flex gap-2 justify-start h-11 bg-transparent p-0 border-b-0">
+                    <TabsTrigger value="health" className="tab-trigger h-11 border-b-2 border-transparent px-2 text-xs font-semibold data-[state=active]:border-[var(--color-primary)] data-[state=active]:text-[var(--color-primary)]">Health</TabsTrigger>
+                    <TabsTrigger value="timeline" className="tab-trigger h-11 border-b-2 border-transparent px-2 text-xs font-semibold data-[state=active]:border-[var(--color-primary)] data-[state=active]:text-[var(--color-primary)]">Timeline</TabsTrigger>
+                    <TabsTrigger value="members" className="tab-trigger h-11 border-b-2 border-transparent px-2 text-xs font-semibold data-[state=active]:border-[var(--color-primary)] data-[state=active]:text-[var(--color-primary)]">Members</TabsTrigger>
+                    <TabsTrigger value="risks" className="tab-trigger h-11 border-b-2 border-transparent px-2 text-xs font-semibold data-[state=active]:border-[var(--color-primary)] data-[state=active]:text-[var(--color-primary)]">Risks & Deps</TabsTrigger>
+                  </TabsList>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6 text-xs">
+                  {/* HEALTH TAB */}
+                  <TabsContent value="health" className="space-y-5 m-0 focus:outline-none">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 rounded-xl bg-[var(--background-secondary)]/50 border border-[var(--border)]">
+                        <p className="text-[10px] text-[var(--foreground-muted)] uppercase font-semibold">Project Health</p>
+                        <p className={cn("text-base font-bold mt-1.5", healthConfig[selectedProject.health].color)}>
+                          {healthConfig[selectedProject.health].label}
+                        </p>
+                      </div>
+                      <div className="p-4 rounded-xl bg-[var(--background-secondary)]/50 border border-[var(--border)]">
+                        <p className="text-[10px] text-[var(--foreground-muted)] uppercase font-semibold">Tasks Completed</p>
+                        <p className="text-base font-bold mt-1.5 text-[var(--foreground)]">
+                          {selectedProject.stats.completedTasks} / {selectedProject.stats.totalTasks}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Progress Track</h4>
+                      <Progress value={selectedProject.progress} className="h-2" indicatorClassName={healthConfig[selectedProject.health].bg} />
+                      <p className="text-[10px] text-[var(--foreground-muted)]">Target Delivery: {new Date(selectedProject.targetDate).toLocaleDateString()}</p>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-[var(--border)] space-y-2">
+                      <h4 className="text-xs font-bold text-[var(--foreground)]">Recent Releases</h4>
+                      <div className="divide-y divide-[var(--border)]">
+                        <div className="py-2 flex items-center justify-between">
+                          <span className="font-semibold font-mono">v1.2.0-beta</span>
+                          <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700">Released</Badge>
+                        </div>
+                        <div className="py-2 flex items-center justify-between">
+                          <span className="font-semibold font-mono">v1.1.0</span>
+                          <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700">Released</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* TIMELINE TAB */}
+                  <TabsContent value="timeline" className="space-y-4 m-0 focus:outline-none">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Project Milestones</h4>
+                    <div className="relative border-l border-[var(--border)] pl-4 ml-2 space-y-6 pt-2">
+                      <div className="relative">
+                        <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-[var(--card-bg)] shadow-xs" />
+                        <p className="text-[10px] text-[var(--foreground-muted)] font-semibold">Jan 15, 2026</p>
+                        <p className="text-xs font-semibold text-[var(--foreground)] mt-0.5">Project Kickoff & Requirements Alignment</p>
+                      </div>
+                      <div className="relative">
+                        <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-blue-500 border-2 border-[var(--card-bg)] shadow-xs animate-pulse" />
+                        <p className="text-[10px] text-[var(--foreground-muted)] font-semibold">Mar 30, 2026 (In Progress)</p>
+                        <p className="text-xs font-semibold text-[var(--foreground)] mt-0.5">Core Services API Rollout & Integration</p>
+                      </div>
+                      <div className="relative">
+                        <div className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-slate-200 border-2 border-[var(--card-bg)] shadow-xs" />
+                        <p className="text-[10px] text-[var(--foreground-muted)] font-semibold">Aug 30, 2026 (Upcoming)</p>
+                        <p className="text-xs font-semibold text-[var(--foreground)] mt-0.5">Security Audit Review & GA Release Deployment</p>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* MEMBERS TAB */}
+                  <TabsContent value="members" className="space-y-4 m-0 focus:outline-none">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Project Team</h4>
+                    <div className="divide-y divide-[var(--border)] border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--card-bg)]">
+                      {/* Lead */}
+                      <div className="flex items-center gap-3 p-3 hover:bg-[var(--background-secondary)]/50 transition-colors">
+                        <Avatar className="w-8 h-8 shrink-0">
+                          <AvatarFallback className="text-[10px] bg-blue-100 text-blue-700 font-bold">PM</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-[var(--foreground)]">{selectedProject.lead.name}</p>
+                          <p className="text-[10px] text-[var(--foreground-muted)]">Project Manager</p>
+                        </div>
+                        <Badge variant="outline" className="text-[9px] border-none bg-blue-50 text-blue-700">Lead</Badge>
+                      </div>
+
+                      {/* Team */}
+                      {selectedProject.team.map(member => (
+                        <div key={member.userId} className="flex items-center gap-3 p-3 hover:bg-[var(--background-secondary)]/50 transition-colors">
+                          <Avatar className="w-8 h-8 shrink-0">
+                            <AvatarFallback className="text-[10px] bg-slate-100 text-slate-700 font-bold">{member.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-[var(--foreground)]">{member.name}</p>
+                            <p className="text-[10px] text-[var(--foreground-muted)]">Developer</p>
+                          </div>
+                          <Badge variant="outline" className="text-[9px] border-none bg-slate-50 text-slate-500">Member</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
+
+                  {/* RISKS & DEPENDENCIES TAB */}
+                  <TabsContent value="risks" className="space-y-6 m-0 focus:outline-none">
+                    {/* Risks Section */}
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Identified Project Risks</h4>
+                      <div className="p-3 border border-red-200 dark:border-red-900/30 rounded-xl bg-red-50/20 dark:bg-red-950/10 flex items-start gap-2.5">
+                        <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-xs text-[var(--foreground)]">Staffing Shortage & Deliverables Latency</p>
+                          <p className="text-[10px] text-[var(--foreground-secondary)] mt-0.5 leading-relaxed">
+                            Mitigation Plan: Resource load balancing from other portal services scheduled next week.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Dependencies Section */}
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Module Dependencies</h4>
+                      <div className="divide-y divide-[var(--border)] border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--card-bg)] shadow-xs">
+                        <div className="flex items-center justify-between p-3">
+                          <div className="flex items-center gap-2">
+                            <Cpu className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />
+                            <span className="font-semibold">auth-service v3.0.1</span>
+                          </div>
+                          <Badge variant="outline" className="text-[9px] bg-amber-50 text-amber-700">Vulnerable</Badge>
+                        </div>
+                        <div className="flex items-center justify-between p-3">
+                          <div className="flex items-center gap-2">
+                            <Cpu className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />
+                            <span className="font-semibold">client-portal v2.4.0</span>
+                          </div>
+                          <Badge variant="outline" className="text-[9px] bg-emerald-50 text-emerald-700">Healthy</Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </div>
+              </Tabs>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

@@ -39,7 +39,7 @@ interface EnterpriseFilterBarProps {
   onSortSelect?: (field: string) => void;
 
   // Raw data for client-side export
-  filteredData?: Record<string, unknown>[];
+  filteredData?: any[];
   
   // Custom filter dropdowns
   children?: React.ReactNode;

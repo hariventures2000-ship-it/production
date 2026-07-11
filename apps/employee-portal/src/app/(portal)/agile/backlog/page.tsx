@@ -9,7 +9,8 @@ import { useState, useEffect, useMemo } from "react";
 import { 
   Plus, ChevronDown, ChevronRight, 
   AlertCircle, Bookmark, CheckCircle2,
-  AlertTriangle, RefreshCcw, Tag, Layers, User, Zap, Clock
+  AlertTriangle, RefreshCcw, Tag, Layers, User, Zap, Clock,
+  MoreHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

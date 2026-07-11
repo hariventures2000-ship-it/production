@@ -1,17 +1,28 @@
+// ═══════════════════════════════════════════════════════════════════
+// MERVI EMPLOYEE PORTAL — Reports & Analytics Page
+// Enhanced with Active Sprint/Project selectors, KPI tiles, and Dropdown Exports
+// ═══════════════════════════════════════════════════════════════════
+
 "use client";
 
+import { useState } from "react";
 import {
   CheckCircle2, GitPullRequest, Rocket, Clock, TrendingUp,
-  Award, Users, BarChart3,
+  Award, Users, BarChart3, Download, Calendar, Filter, FileText
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/cn";
 import {
   PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
+import { toast } from "sonner";
 
 // ── Mock Data ────────────────────────────────────────────────────────
 
@@ -86,14 +97,74 @@ function PieTooltip({ active, payload }: any) {
 export default function ReportsPage() {
   const totalTasks = taskDistribution.reduce((acc, d) => acc + d.value, 0);
 
+  // Active filters state
+  const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedSprint, setSelectedSprint] = useState("sprint-18");
+
+  const handleExport = (format: string) => {
+    toast.info(`Preparing ${format} export compilation for ${selectedSprint}...`);
+    setTimeout(() => {
+      toast.success(`Export successful! ${selectedSprint}_Metrics.${format.toLowerCase()} downloaded.`);
+    }, 1200);
+  };
+
   return (
     <div className="space-y-6 max-w-[1400px]">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--foreground)] tracking-tight">Reports & Analytics</h1>
-        <p className="text-sm text-[var(--foreground-secondary)] mt-1">
-          Organizational metrics, activity trends, and team performance analytics.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--foreground)] tracking-tight">Reports & Analytics</h1>
+          <p className="text-sm text-[var(--foreground-secondary)] mt-1">
+            Organizational metrics, activity trends, and team performance analytics.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm">
+                <Download className="w-4 h-4 mr-2" /> Export Metrics
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport("PDF")} className="text-xs">
+                <FileText className="w-3.5 h-3.5 mr-2" /> PDF Report Document
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("CSV")} className="text-xs">
+                <FileText className="w-3.5 h-3.5 mr-2" /> CSV Spreadsheet
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("Excel")} className="text-xs">
+                <FileText className="w-3.5 h-3.5 mr-2" /> Excel Workbook
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Select Filter Panel */}
+      <div className="flex flex-col sm:flex-row items-center gap-4 bg-[var(--card-bg)] p-4 rounded-xl border border-[var(--border)] shadow-xs">
+        <div className="flex items-center gap-1.5 text-xs text-[var(--foreground-secondary)] font-medium">
+          <Filter className="w-3.5 h-3.5" />
+          <span>Active Context:</span>
+        </div>
+        <select 
+          className="h-9 px-3 text-xs bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-[var(--foreground)]"
+          value={selectedProject}
+          onChange={(e) => setSelectedProject(e.target.value)}
+        >
+          <option value="all">All Projects</option>
+          <option value="mervi">Mervi Platform v2</option>
+          <option value="client">Client Portal</option>
+          <option value="auth">Auth Service</option>
+        </select>
+        <select 
+          className="h-9 px-3 text-xs bg-[var(--background-secondary)] border border-[var(--border)] rounded-lg focus:outline-none focus:ring-1 focus:ring-[var(--color-primary)] text-[var(--foreground)]"
+          value={selectedSprint}
+          onChange={(e) => setSelectedSprint(e.target.value)}
+        >
+          <option value="sprint-18">Active Sprint 18</option>
+          <option value="sprint-17">Sprint 17 Summary</option>
+          <option value="sprint-16">Sprint 16 Summary</option>
+        </select>
       </div>
 
       {/* Summary Stats */}
@@ -102,29 +173,54 @@ export default function ReportsPage() {
           const Icon = stat.icon;
           const isPositive = stat.change.startsWith("+");
           return (
-            <Card key={stat.label}>
+            <Card key={stat.label} className="shadow-xs">
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", stat.bg)}>
                     <Icon className={cn("w-5 h-5", stat.color)} />
                   </div>
-                  <Badge variant="secondary" className={cn("text-[10px]", isPositive ? "text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950" : "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950")}>
+                  <Badge variant="secondary" className={cn("text-[9px] border-none", isPositive ? "text-emerald-700 bg-emerald-50" : "text-blue-700 bg-blue-50")}>
                     <TrendingUp className="w-3 h-3 mr-0.5" />
                     {stat.change}
                   </Badge>
                 </div>
                 <p className="text-2xl font-bold text-[var(--foreground)]">{stat.value}</p>
-                <p className="text-xs text-[var(--foreground-muted)] mt-0.5">{stat.sublabel}</p>
+                <p className="text-[10px] text-[var(--foreground-muted)] uppercase font-semibold mt-0.5">{stat.label}</p>
               </CardContent>
             </Card>
           );
         })}
       </div>
 
+      {/* Additional KPI cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="shadow-xs">
+          <CardContent className="p-4 text-xs">
+            <p className="text-[10px] text-[var(--foreground-muted)] uppercase font-semibold">Code Review SLA</p>
+            <p className="text-lg font-bold text-[var(--foreground)] mt-1">2.8 Hours</p>
+            <p className="text-[10px] text-emerald-600 font-medium mt-1">✓ Enforces standard SLA target (3h)</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-xs">
+          <CardContent className="p-4 text-xs">
+            <p className="text-[10px] text-[var(--foreground-muted)] uppercase font-semibold">Defect Leakage Rate</p>
+            <p className="text-lg font-bold text-[var(--foreground)] mt-1">1.2%</p>
+            <p className="text-[10px] text-emerald-600 font-medium mt-1">✓ Under critical threshold limits (5%)</p>
+          </CardContent>
+        </Card>
+        <Card className="shadow-xs">
+          <CardContent className="p-4 text-xs">
+            <p className="text-[10px] text-[var(--foreground-muted)] uppercase font-semibold">Release Success Rate</p>
+            <p className="text-lg font-bold text-[var(--foreground)] mt-1">98.4%</p>
+            <p className="text-[10px] text-emerald-600 font-medium mt-1">✓ High build stability indexes</p>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
         {/* Weekly Activity */}
-        <Card>
+        <Card className="shadow-xs">
           <CardHeader>
             <CardTitle className="text-base">Weekly Activity</CardTitle>
             <CardDescription>Commits, pull requests, and deployments over the last 4 weeks.</CardDescription>
@@ -134,13 +230,13 @@ export default function ReportsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={weeklyActivity}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="week" tick={{ fontSize: 12, fill: "var(--foreground-muted)" }} />
-                  <YAxis tick={{ fontSize: 12, fill: "var(--foreground-muted)" }} />
+                  <XAxis dataKey="week" tick={{ fontSize: 11, fill: "var(--foreground-muted)" }} />
+                  <YAxis tick={{ fontSize: 11, fill: "var(--foreground-muted)" }} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-                  <Area type="monotone" dataKey="commits" name="Commits" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.1} />
-                  <Area type="monotone" dataKey="prs" name="PRs" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.1} />
-                  <Area type="monotone" dataKey="deploys" name="Deploys" stroke="#10b981" fill="#10b981" fillOpacity={0.1} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                  <Area type="monotone" dataKey="commits" name="Commits" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.06} />
+                  <Area type="monotone" dataKey="prs" name="PRs" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.06} />
+                  <Area type="monotone" dataKey="deploys" name="Deploys" stroke="#10b981" fill="#10b981" fillOpacity={0.06} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -148,7 +244,7 @@ export default function ReportsPage() {
         </Card>
 
         {/* Task Distribution Pie */}
-        <Card>
+        <Card className="shadow-xs">
           <CardHeader>
             <CardTitle className="text-base">Task Distribution</CardTitle>
             <CardDescription>{totalTasks} total tasks across all statuses.</CardDescription>
@@ -162,7 +258,7 @@ export default function ReportsPage() {
                     cx="50%"
                     cy="50%"
                     innerRadius={55}
-                    outerRadius={80}
+                    outerRadius={75}
                     paddingAngle={3}
                     dataKey="value"
                   >
@@ -181,7 +277,7 @@ export default function ReportsPage() {
                     <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
                     <span className="text-[var(--foreground-secondary)]">{d.name}</span>
                   </div>
-                  <span className="font-medium text-[var(--foreground)]">{d.value}</span>
+                  <span className="font-semibold text-[var(--foreground)]">{d.value}</span>
                 </div>
               ))}
             </div>
@@ -190,7 +286,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Team Leaderboard */}
-      <Card>
+      <Card className="shadow-xs">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <Award className="w-4 h-4 text-amber-500" />
@@ -201,19 +297,19 @@ export default function ReportsPage() {
         <CardContent className="p-0">
           <div className="divide-y divide-[var(--border)]">
             {leaderboard.map((member) => (
-              <div key={member.rank} className="flex items-center gap-4 p-4 hover:bg-[var(--background-secondary)] transition-colors">
+              <div key={member.rank} className="flex items-center gap-4 p-4 hover:bg-[var(--background-secondary)]/30 transition-colors text-xs">
                 <div className={cn(
                   "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
                   RANK_STYLE[member.rank] || "bg-[var(--background-secondary)] text-[var(--foreground-muted)]"
                 )}>
                   {member.rank}
                 </div>
-                <Avatar className="w-9 h-9 shrink-0">
-                  <AvatarFallback className="text-xs bg-[var(--color-primary)] text-white">{member.initials}</AvatarFallback>
+                <Avatar className="w-8 h-8 shrink-0">
+                  <AvatarFallback className="text-xs bg-[var(--color-primary)] text-white font-bold">{member.initials}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[var(--foreground)]">{member.name}</p>
-                  <p className="text-xs text-[var(--foreground-muted)]">{member.role}</p>
+                  <p className="font-semibold text-sm text-[var(--foreground)]">{member.name}</p>
+                  <p className="text-[10px] text-[var(--foreground-muted)] mt-0.5">{member.role}</p>
                 </div>
                 <div className="hidden sm:flex items-center gap-6 text-xs text-[var(--foreground-secondary)]">
                   <div className="text-center">

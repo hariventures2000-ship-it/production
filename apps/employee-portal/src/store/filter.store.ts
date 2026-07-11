@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { FilterState, SavedView } from '../types/filter.types';
+import type { FilterState, SavedView, FilterValue } from '../types/filter.types';
 
 interface FilterStore {
   moduleStates: Record<string, FilterState>;

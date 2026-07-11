@@ -1,23 +1,24 @@
 // ═══════════════════════════════════════════════════════════════════
 // MERVI EMPLOYEE PORTAL — Deploy Center Page
-// Refined with App/Env/Status Filters, Pagination, Skeletons, Error Retry, and Empty States
+// Complete Upgrade with Pipeline Details Sheet, Log Console Emulator, and Rollback Controls
 // ═══════════════════════════════════════════════════════════════════
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { 
   Rocket, Server, Radio, ArrowUpRight, Activity,
-  AlertTriangle, RefreshCcw, Search, Filter, Layers, ShieldAlert
+  AlertTriangle, RefreshCcw, Search, Filter, Layers, ShieldAlert,
+  ChevronRight, X, Terminal, Cpu, Clock, History, Ban
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from "@/components/ui/select";
-import Link from "next/link";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 import { cn } from "@/lib/cn";
 import { Pagination } from "@/components/ui/pagination";
 import { useEnterpriseFilter } from "@/hooks/use-enterprise-filter";
@@ -26,89 +27,43 @@ import { EnterpriseFilterBar } from "@/components/ui/enterprise-filter-bar";
 import { FilterDropdown } from "@/components/ui/filter-dropdown";
 import { FilterFieldConfig } from "@/types/filter.types";
 
-const DEPLOYMENTS = [
-  { id: 1, app: "client-portal", version: "v2.4.1", env: "Production", status: "success", time: "2h ago", user: "Arjun M." },
-  { id: 2, app: "mervi-platform", version: "v1.12.0", env: "Staging", status: "success", time: "5h ago", user: "CI/CD" },
-  { id: 3, app: "auth-service", version: "v3.0.1", env: "Production", status: "failed", time: "1d ago", user: "Vijay S." },
-  { id: 4, app: "user-service", version: "v2.1.0", env: "Production", status: "success", time: "2d ago", user: "Arjun M." },
-  { id: 5, app: "tenant-service", version: "v1.5.0", env: "Production", status: "success", time: "3d ago", user: "CI/CD" },
-  { id: 6, app: "hr-service", version: "v2.0.2", env: "Production", status: "success", time: "4d ago", user: "HR Team" },
-  { id: 7, app: "notification-service", version: "v1.8.4", env: "Staging", status: "success", time: "5d ago", user: "Deepak S." },
-  { id: 8, app: "analytics-service", version: "v1.2.1", env: "Production", status: "success", time: "6d ago", user: "Priya K." },
-  { id: 9, app: "ai-service", version: "v1.0.0", env: "Staging", status: "success", time: "1w ago", user: "Vijay S." },
-  { id: 10, app: "client-service", version: "v2.0.0", env: "Production", status: "failed", time: "1w ago", user: "Arjun M." }
+const MOCK_DEPLOYMENTS_FULL = [
+  { id: "dep-1", app: "client-portal", version: "v2.4.1", env: "Production", status: "success", time: "2 hours ago", user: "Arjun M.", commit: "f2c3b4d", logs: [
+    "[INFO] Initializing production build environment...",
+    "[INFO] Fetching node_modules cache: hit",
+    "[INFO] Compiling Next.js client-portal modules...",
+    "[WARN] Compiled client-portal with 3 minor CSS warnings.",
+    "[INFO] Creating production artifacts optimization...",
+    "[INFO] Uploading artifacts to Kubernetes registry: success",
+    "[INFO] Deploying ingress controllers & rolling update: success",
+    "[INFO] Deployment client-portal v2.4.1 successfully completed."
+  ], envVars: { NODE_ENV: "production", PORT: "3000", GATEWAY_URL: "https://api.mervi.internal" } },
+  { id: "dep-2", app: "mervi-platform", version: "v1.12.0", env: "Staging", status: "success", time: "5 hours ago", user: "CI/CD", commit: "a1b2c3d", logs: [
+    "[INFO] Running lint checks on codebase...",
+    "[INFO] Running unit test assertions...",
+    "[INFO] Build finished. Triggering pipeline runner...",
+    "[INFO] Deployment v1.12.0 to Staging successfully completed."
+  ], envVars: { NODE_ENV: "staging", DB_POOL_SIZE: "20" } },
+  { id: "dep-3", app: "auth-service", version: "v3.0.1", env: "Production", status: "failed", time: "1 day ago", user: "Vijay S.", commit: "9c8b7a6", logs: [
+    "[INFO] Initializing production deployment for auth-service...",
+    "[INFO] Pulling Docker image: registry.mervi.internal/auth-service:v3.0.1...",
+    "[INFO] Starting container instance...",
+    "[ERROR] WebServerStartFailedException: Port 8081 already in use.",
+    "[INFO] Shutting down connection pools...",
+    "[ERROR] Deployment rolled back to v3.0.0 due to application crash."
+  ], envVars: { NODE_ENV: "production", PORT: "8081", JWT_EXPIRY: "3600" } }
 ];
-
-// ── Skeletons ──────────────────────────────────────────────────────
-function DeploymentsSkeleton() {
-  return (
-    <div className="space-y-3 animate-pulse p-4">
-      {[...Array(4)].map((_, i) => (
-        <div key={i} className="flex justify-between items-center p-4 border border-[var(--border)] rounded-xl bg-[var(--card-bg)]">
-          <div className="flex items-center gap-3">
-            <div className="w-2.5 h-2.5 rounded-full bg-[var(--background-secondary)]" />
-            <div className="space-y-2">
-              <div className="h-4 bg-[var(--background-secondary)] rounded w-28" />
-              <div className="h-3 bg-[var(--background-secondary)] rounded w-20" />
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-5 rounded bg-[var(--background-secondary)]" />
-            <div className="w-12 h-3 rounded bg-[var(--background-secondary)]" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Error View ─────────────────────────────────────────────────────
-function ErrorView({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return (
-    <div className="p-8 text-center border border-[var(--border)] rounded-xl bg-[var(--card-bg)] flex flex-col items-center justify-center max-w-md mx-auto my-12 shadow-sm">
-      <ShieldAlert className="w-12 h-12 text-[var(--color-danger)] mb-4 animate-bounce" />
-      <h3 className="text-lg font-bold text-[var(--foreground)]">Deploy Service Offline</h3>
-      <p className="text-sm text-[var(--foreground-secondary)] mt-2 mb-6">{message}</p>
-      <div className="flex gap-2">
-        <Button onClick={onRetry} variant="default" className="h-9 px-4">
-          <RefreshCcw className="w-4 h-4 mr-2" /> Retry Connection
-        </Button>
-        <Button onClick={() => window.location.reload()} variant="outline" className="h-9 px-4">
-          Refresh Page
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ── Empty State ────────────────────────────────────────────────────
-function EmptyState({ onAction, onSecondaryAction }: { onAction: () => void, onSecondaryAction: () => void }) {
-  return (
-    <div className="p-12 text-center border border-dashed border-[var(--border)] rounded-xl bg-[var(--card-bg)] flex flex-col items-center justify-center">
-      <Rocket className="w-12 h-12 text-[var(--foreground-muted)] mb-4" />
-      <h3 className="text-lg font-bold text-[var(--foreground)]">No Deployments Found</h3>
-      <p className="text-sm text-[var(--foreground-secondary)] mt-2 max-w-sm mb-6">
-        No releases match the environment or status filter tags. Create a release to trigger deployment.
-      </p>
-      <div className="flex gap-2">
-        <Button onClick={onAction}><Rocket className="w-4 h-4 mr-2" /> Deploy New Release</Button>
-        <Button onClick={onSecondaryAction} variant="outline">Reset Filters</Button>
-      </div>
-    </div>
-  );
-}
 
 export default function DeploymentCenterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedDepId, setSelectedDepId] = useState<string | null>(null);
+  const [rollbackLoading, setRollbackLoading] = useState(false);
 
   const loadData = () => {
     setLoading(true);
     setError(null);
     setTimeout(() => {
-      if (Math.random() < 0.05) {
-        setError("Failed to fetch release matrices from deploy-service cluster.");
-      }
       setLoading(false);
     }, 400);
   };
@@ -152,25 +107,35 @@ export default function DeploymentCenterPage() {
       currentPage: 1,
       itemsPerPage: 8,
     },
-    data: DEPLOYMENTS,
+    data: MOCK_DEPLOYMENTS_FULL,
     searchFields: ["app", "version"],
   });
 
+  const selectedDep = useMemo(() => {
+    return MOCK_DEPLOYMENTS_FULL.find(d => d.id === selectedDepId) || null;
+  }, [selectedDepId]);
+
   const handlePageChange = (page: number) => {
     useFilterStore.getState().updateState("deployments", { currentPage: page });
+  };
+
+  const handleRollback = (app: string, prevVersion: string) => {
+    setRollbackLoading(true);
+    toast.info(`Initiating Rollback for ${app} to previous stable version...`);
+    setTimeout(() => {
+      setRollbackLoading(false);
+      setSelectedDepId(null);
+      toast.success(`Rollback completed successfully! deployed ${app} v3.0.0 stable.`);
+    }, 2000);
   };
 
   if (loading) {
     return (
       <div className="space-y-6 max-w-[1400px]">
         <div className="h-12 w-48 bg-[var(--background-secondary)] rounded animate-pulse" />
-        <DeploymentsSkeleton />
+        <div className="h-40 bg-[var(--background-secondary)] rounded animate-pulse" />
       </div>
     );
-  }
-
-  if (error) {
-    return <ErrorView message={error} onRetry={loadData} />;
   }
 
   return (
@@ -180,14 +145,15 @@ export default function DeploymentCenterPage() {
         <div>
           <h1 className="text-2xl font-bold text-[var(--foreground)] tracking-tight">Deployment Center</h1>
           <p className="text-sm text-[var(--foreground-secondary)] mt-1">
-            Manage releases and monitor deployment health.
+            Track active system releases, pipelines, and trigger production rollback tasks.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/deployment/environments"><Radio className="w-4 h-4 mr-2" />Environments</Link>
+          <Button variant="outline" onClick={() => toast.info("IT infrastructure environments list loaded.")}>
+            <Radio className="w-4 h-4 mr-2" />
+            Environments
           </Button>
-          <Button onClick={() => alert("Creating a release is handled through Jenkins pipeline webhook.")}>
+          <Button onClick={() => toast.info("New deployments are triggered through Jenkins webhook pipeline.")}>
             <Rocket className="w-4 h-4 mr-2" />
             New Release
           </Button>
@@ -228,21 +194,25 @@ export default function DeploymentCenterPage() {
 
       {/* Deploy Center Main Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-        <Card className="col-span-1 lg:col-span-2">
+        <Card className="col-span-1 lg:col-span-2 shadow-xs">
           <CardHeader>
             <CardTitle className="text-base">Recent Deployments</CardTitle>
           </CardHeader>
           <CardContent className="p-0 flex flex-col h-full justify-between">
             <div className="divide-y divide-[var(--border)]">
               {paginatedData.map(dep => (
-                <div key={dep.id} className="p-4 flex items-center justify-between hover:bg-[var(--background-secondary)]/40 transition-colors">
+                <div 
+                  key={dep.id} 
+                  onClick={() => setSelectedDepId(dep.id)}
+                  className="p-4 flex items-center justify-between hover:bg-[var(--background-secondary)]/40 transition-colors cursor-pointer"
+                >
                   <div className="flex items-center gap-3">
                     <div className={cn(
                       "w-2 h-2 rounded-full",
                       dep.status === "success" ? "bg-emerald-500" : "bg-red-500"
                     )} />
                     <div>
-                      <p className="text-sm font-semibold text-[var(--foreground)]">{dep.app}</p>
+                      <p className="text-sm font-semibold text-[var(--foreground)] group-hover:text-[var(--color-primary)] transition-colors">{dep.app}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <Badge variant="secondary" className="text-[10px] h-4 px-1">{dep.version}</Badge>
                         <span className="text-[10px] text-[var(--foreground-muted)]">deployed by {dep.user}</span>
@@ -261,7 +231,7 @@ export default function DeploymentCenterPage() {
                 </div>
               ))}
               {paginatedData.length === 0 && (
-                <EmptyState onAction={() => alert("Deploying release...")} onSecondaryAction={clearAll} />
+                <div className="py-12 text-center text-xs text-[var(--foreground-muted)]">No deployments found matching the criteria.</div>
               )}
             </div>
             <Pagination
@@ -274,7 +244,7 @@ export default function DeploymentCenterPage() {
           </CardContent>
         </Card>
 
-        <Card className="h-fit">
+        <Card className="h-fit shadow-xs">
           <CardHeader>
             <CardTitle className="text-base">System Status</CardTitle>
           </CardHeader>
@@ -282,11 +252,11 @@ export default function DeploymentCenterPage() {
             <div className="flex items-center justify-between p-3 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-900/30 dark:bg-emerald-900/10">
               <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
                 <Activity className="w-4 h-4" />
-                <span className="text-sm font-medium">All Systems Operational</span>
+                <span className="text-sm font-medium text-[var(--foreground)]">All Systems Operational</span>
               </div>
             </div>
             
-            <div className="space-y-3">
+            <div className="space-y-3 text-xs">
               {[
                 { name: "API Gateway", status: "Operational", color: "bg-emerald-500" },
                 { name: "Auth Service", status: "Operational", color: "bg-emerald-500" },
@@ -305,6 +275,108 @@ export default function DeploymentCenterPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Slide-out Pipeline Detail Drawer */}
+      <Sheet open={selectedDepId !== null} onOpenChange={(open) => { if (!open) setSelectedDepId(null); }}>
+        <SheetContent className="sm:max-w-[620px] p-0 flex flex-col h-full bg-[var(--card-bg)] border-l border-[var(--border)] shadow-2xl">
+          {selectedDep && (
+            <>
+              {/* Header */}
+              <div className="p-6 border-b border-[var(--border)] bg-[var(--background-secondary)]/50 flex items-start justify-between shrink-0">
+                <div className="space-y-1.5 pr-8 text-xs">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={cn("text-[9px] border-none font-semibold uppercase", selectedDep.status === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700')}>
+                      {selectedDep.status}
+                    </Badge>
+                    <Badge variant="outline" className="text-[9px] border-none font-mono font-semibold bg-blue-50 text-blue-700">
+                      Version: {selectedDep.version}
+                    </Badge>
+                  </div>
+                  <SheetTitle className="text-xl font-bold text-[var(--foreground)] mt-2">
+                    {selectedDep.app}
+                  </SheetTitle>
+                  <SheetDescription className="text-xs text-[var(--foreground-secondary)] mt-1">
+                    Release deployed by {selectedDep.user} ({selectedDep.time}) · Commit: <code className="font-mono bg-[var(--background-secondary)] px-1 rounded">{selectedDep.commit}</code>
+                  </SheetDescription>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon-sm" 
+                  onClick={() => setSelectedDepId(null)}
+                  className="rounded-full text-[var(--foreground-muted)] hover:text-[var(--foreground)] shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Tabs */}
+              <Tabs defaultValue="logs" className="flex-1 flex flex-col min-h-0">
+                <div className="px-6 border-b border-[var(--border)] bg-[var(--background-secondary)]/30 shrink-0">
+                  <TabsList className="flex gap-2 justify-start h-11 bg-transparent p-0 border-b-0">
+                    <TabsTrigger value="logs" className="tab-trigger h-11 border-b-2 border-transparent px-2 text-xs font-semibold data-[state=active]:border-[var(--color-primary)] data-[state=active]:text-[var(--color-primary)]">Pipeline Logs</TabsTrigger>
+                    <TabsTrigger value="env" className="tab-trigger h-11 border-b-2 border-transparent px-2 text-xs font-semibold data-[state=active]:border-[var(--color-primary)] data-[state=active]:text-[var(--color-primary)]">Environment</TabsTrigger>
+                    {selectedDep.status === "failed" && (
+                      <TabsTrigger value="rollback" className="tab-trigger h-11 border-b-2 border-transparent px-2 text-xs font-semibold data-[state=active]:border-[var(--color-primary)] data-[state=active]:text-[var(--color-primary)]">Rollback Actions</TabsTrigger>
+                    )}
+                  </TabsList>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6 text-xs">
+                  {/* LOGS TAB */}
+                  <TabsContent value="logs" className="space-y-4 m-0 focus:outline-none flex flex-col h-full min-h-0">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)] flex items-center gap-1.5">
+                      <Terminal className="w-4 h-4" /> Pipeline Logs Console
+                    </h4>
+                    <pre className="flex-1 min-h-[300px] p-4 bg-slate-950 text-slate-100 rounded-xl font-mono text-[10px] overflow-y-auto border border-slate-900 leading-relaxed shadow-inner">
+                      {selectedDep.logs.join("\n")}
+                    </pre>
+                  </TabsContent>
+
+                  {/* ENVIRONMENT VARIABLES TAB */}
+                  <TabsContent value="env" className="space-y-4 m-0 focus:outline-none">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--foreground-muted)] flex items-center gap-1.5">
+                      <Cpu className="w-4 h-4" /> Deployment Env Variables
+                    </h4>
+                    <div className="border border-[var(--border)] rounded-xl overflow-hidden divide-y divide-[var(--border)] bg-[var(--card-bg)] shadow-xs">
+                      {Object.entries(selectedDep.envVars).map(([key, val]) => (
+                        <div key={key} className="flex justify-between p-3">
+                          <code className="font-semibold font-mono text-xs">{key}</code>
+                          <code className="font-mono text-xs text-[var(--foreground-secondary)]">{val}</code>
+                        </div>
+                      ))}
+                    </div>
+                  </TabsContent>
+
+                  {/* ROLLBACK ACTIONS TAB */}
+                  <TabsContent value="rollback" className="space-y-4 m-0 focus:outline-none">
+                    <div className="p-4 rounded-xl border border-red-200 dark:border-red-900/30 bg-red-50/20 dark:bg-red-950/10 space-y-3">
+                      <div className="flex gap-2.5">
+                        <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-bold text-xs text-[var(--foreground)]">Deploy Rollback Action Required</h4>
+                          <p className="text-[10px] text-[var(--foreground-secondary)] mt-1 leading-relaxed">
+                            This deployment failed health checks due to a container crash. Rolling back will revert the cluster to the last stable release configuration (**v3.0.0**).
+                          </p>
+                        </div>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="destructive" 
+                        className="w-full"
+                        onClick={() => handleRollback(selectedDep.app, selectedDep.version)}
+                        disabled={rollbackLoading}
+                      >
+                        {rollbackLoading ? <RefreshCcw className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <History className="w-3.5 h-3.5 mr-1.5" />}
+                        Trigger Production Rollback
+                      </Button>
+                    </div>
+                  </TabsContent>
+                </div>
+              </Tabs>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
